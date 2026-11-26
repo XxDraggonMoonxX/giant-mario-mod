@@ -25,13 +25,22 @@ window.addEventListener('message', e => {
   window.EJS_pathtodata = DATA_PATH;
   window.EJS_color = '#ffcc33';
   window.EJS_backgroundColor = '#000000';
+  loadEmulator(3);
+});
+
+function loadEmulator(triesLeft) {
   const script = document.createElement('script');
   script.src = DATA_PATH + 'loader.js';
   script.onerror = () => {
+    script.remove();
+    if (triesLeft > 1) {
+      setTimeout(() => loadEmulator(triesLeft - 1), 1500);
+      return;
+    }
     document.getElementById('wait').textContent = 'The emulator could not load. Check your internet connection: SNES, Game Boy, GBA, Genesis and other systems download the emulator the first time you play.';
   };
   document.body.appendChild(script);
-});
+}
 
 parent.postMessage({ type: 'emu-ready' }, '*');
 </script>
