@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Giant Mario Mod</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<style>
+  :root {
+    --bg: #14121c;
+    --panel: #1f1c2b;
+    --line: #353047;
+    --text: #ece9f5;
+    --muted: #a39db8;
+    --accent: #ffcc33;
+    --accent-ink: #2a2000;
+    --danger: #ff6b6b;
+    --pad: #2a2638;
+    --pad-on: #4a4366;
+    --red: #e0453a;
+    --red-on: #ff7a6e;
+    --sys-nintendo: #e0453a;
+    --sys-sega: #3d7bff;
+    --sys-handheld: #4cc38a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-block: 20px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid;
+    gap: 20px;
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 22px; }
+  h1 span { color: var(--accent); }
+  h2 { margin: 0 0 4px; font-size: 18px; }
+  .sub { color: var(--muted); margin: 0; }
+
+  .lib-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    min-width: 0;
+  }
+  .card h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+  .card p { margin: 0; color: var(--muted); font-size: 13px; }
+  .card-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .card-actions button { flex: 1; }
+  .badge {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--muted)); }
+  .badge.nintendo { --dot: var(--sys-nintendo); }
+  .badge.sega { --dot: var(--sys-sega); }
+  .badge.handheld { --dot: var(--sys-handheld); }
+  .empty {
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .systems { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .play {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 20px;
+  }
+  .game-col { min-width: 0; }
+  .screen {
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    aspect-ratio: 256 / 240;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    color: var(--muted);
+    padding: 20px;
+  }
+  .emu {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #000;
+  }
+  .notice {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--panel);
+    color: var(--muted);
+  }
+  .notice strong { color: var(--text); }
+  .keys {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+  kbd {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 0 6px;
+    font: 12px ui-monospace, monospace;
+    color: var(--text);
+  }
+
+  .pad {
+    display: none;
+    margin-top: 14px;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "dpad . ab" "menu menu menu";
+    align-items: center;
+    row-gap: 14px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .dpad {
+    grid-area: dpad;
+    display: grid;
+    grid-template-columns: repeat(3, 48px);
+    grid-template-rows: repeat(3, 48px);
+  }
+  .dpad [data-btn] { display: grid; place-items: center; }
+  .arm { background: var(--pad); color: var(--muted); font-size: 18px; }
+  .arm.up { border-radius: 8px 8px 0 0; }
+  .arm.down { border-radius: 0 0 8px 8px; }
+  .arm.left { border-radius: 8px 0 0 8px; }
+  .arm.right { border-radius: 0 8px 8px 0; }
+  .hub { background: var(--pad); }
+  .ab { grid-area: ab; display: grid; grid-template-columns: 72px 18px 72px; align-items: center; }
+  .round {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--red);
+    color: var(--text);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 20px;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, .35);
+  }
+  .round.b { margin-top: 30px; }
+  .bridge { height: 72px; margin-top: 15px; }
+  .menu { grid-area: menu; display: flex; justify-content: center; gap: 18px; }
+  .pill {
+    min-width: 84px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    background: var(--pad);
+    color: var(--muted);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+  }
+  .arm.on, .hub.on, .pill.on { background: var(--pad-on); color: var(--text); }
+  .round.on { background: var(--red-on); transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+
+  aside {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    align-self: start;
+    min-width: 0;
+  }
+  .game-title { display: grid; gap: 4px; margin-bottom: 12px; }
+  .game-title strong { overflow-wrap: anywhere; }
+  .row { margin-bottom: 14px; }
+  .row > label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
+  .row output { color: var(--accent); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font: inherit;
+  }
+  .toggle { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+  .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button, .file {
+    font: inherit;
+    font-weight: 600;
+    border-radius: 7px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+  }
+  button:hover, .file:hover { border-color: var(--muted); }
+  button:focus-visible, .file:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .primary:hover { border-color: var(--text); }
+  .danger { color: var(--danger); }
+  .wide { grid-column: 1 / -1; }
+  .file { display: inline-block; position: relative; }
+  .file input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .status { min-height: 20px; margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+  .status.error { color: var(--danger); }
+  .note { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+  footer { color: var(--muted); font-size: 12px; }
+  code { font: 12px ui-monospace, monospace; color: var(--text); }
+  input[type=search], #cheatInput {
+    width: 100%;
+    min-width: 0;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 9px 12px;
+    font: inherit;
+  }
+  input[type=search]:focus-visible, #cheatInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .search { max-width: 420px; }
+  .cheat-form { display: flex; gap: 8px; }
+  #cheatInput { text-transform: uppercase; font-family: ui-monospace, monospace; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .presets button { font-size: 13px; padding: 6px 10px; }
+  .cheats { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+  .cheats li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 6px 6px 6px 10px;
+    font-size: 13px;
+  }
+  .cheats li span { overflow-wrap: anywhere; }
+  .cheats li button { padding: 4px 10px; font-size: 13px; }
+
+  @media (max-width: 860px) {
+    main { padding-block: 12px 32px; gap: 16px; }
+    .play { grid-template-columns: 1fr; gap: 16px; }
+    .pad { display: grid; }
+    .emu { aspect-ratio: auto; height: min(72vh, 620px); }
+  }
+  @media (pointer: coarse) {
+    .pad { display: grid; }
+    .keys { display: none; }
+  }
+  .play.emu-mode .pad, .play.emu-mode .keys { display: none; }
+  @media (max-width: 370px) {
+    .dpad { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); }
+    .ab { grid-template-columns: 62px 12px 62px; }
+    .round { width: 62px; height: 62px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Giant Mario <span>Mod</span></h1>
+    <button id="backToLibrary" hidden>← Library</button>
+  </header>
+
+  <section id="libraryView">
+    <div class="lib-head">
+      <div>
+        <h2>Your games</h2>
+        <p class="sub">Add a game once and it stays on this device. Nothing is uploaded anywhere.</p>
+      </div>
+      <label class="file primary">+ Add games<input type="file" id="addGames" multiple></label>
+    </div>
+    <p class="status" id="libStatus"></p>
+    <input type="search" class="search" id="search" placeholder="Search your games" aria-label="Search your games">
+    <div class="cards" id="cards"></div>
+    <p class="note" id="noMatch" hidden>No games match that search.</p>
+    <div class="empty" id="empty" hidden>No games yet. Tap <strong>+ Add games</strong> and pick ROM files from your device, like your Giant Mario ROM or your Sonic games.</div>
+    <p class="systems">Works with NES (.nes) · SNES (.sfc .smc) · Game Boy / Color (.gb .gbc) · Game Boy Advance (.gba) · Genesis / Mega Drive (.md .gen .smd .bin) · Master System (.sms) · Game Gear (.gg) · Nintendo 64 (.n64 .z64 .v64) · Nintendo DS (.nds). Unzip .zip files first.</p>
+  </section>
+
+  <section id="playView" class="play" hidden>
+    <div class="game-col">
+      <div class="screen" id="screenBox">
+        <canvas id="screen" width="256" height="240"></canvas>
+        <div class="overlay" id="overlay" hidden></div>
+      </div>
+      <iframe id="emuFrame" class="emu" title="Game" allow="autoplay; fullscreen; gamepad" hidden></iframe>
+      <div class="notice" id="emuNotice" hidden>
+        <strong>This game needs the full site.</strong> NES games play right here, but SNES, Game Boy, GBA, Genesis, Master System, Game Gear, N64 and DS games need the copy on your PC (open <code>index.html</code>) or a copy hosted on your own website.
+      </div>
+      <div class="keys">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> move</span>
+        <span><kbd>X</kbd> <kbd>Space</kbd> <kbd>K</kbd> or click the screen: jump</span>
+        <span><kbd>Z</kbd> <kbd>J</kbd> or right-click: run / fire</span>
+        <span><kbd>Enter</kbd> start</span>
+        <span><kbd>Shift</kbd> select</span>
+      </div>
+      <div class="pad" id="pad">
+        <div class="dpad">
+          <div data-btn="UP LEFT"></div>
+          <div class="arm up" data-btn="UP" data-show="UP">▲</div>
+          <div data-btn="UP RIGHT"></div>
+          <div class="arm left" data-btn="LEFT" data-show="LEFT">◀</div>
+          <div class="hub" data-btn=""></div>
+          <div class="arm right" data-btn="RIGHT" data-show="RIGHT">▶</div>
+          <div data-btn="DOWN LEFT"></div>
+          <div class="arm down" data-btn="DOWN" data-show="DOWN">▼</div>
+          <div data-btn="DOWN RIGHT"></div>
+        </div>
+        <div class="ab">
+          <div class="round b" data-btn="B" data-show="B">B</div>
+          <div class="bridge" data-btn="A B"></div>
+          <div class="round a" data-btn="A" data-show="A">A</div>
+        </div>
+        <div class="menu">
+          <div class="pill" data-btn="SELECT" data-show="SELECT">SELECT</div>
+          <div class="pill" data-btn="START" data-show="START">START</div>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="game-title">
+        <span class="badge" id="gameBadge"></span>
+        <strong id="gameName"></strong>
+      </div>
+      <div class="buttons">
+        <button class="primary wide" id="restart">↻ Restart game</button>
+      </div>
+      <p class="status" id="status"></p>
+
+      <div id="modPanel" hidden>
+        <hr>
+        <p class="note">Changes apply while you play. Timer, lives and music update instantly.</p>
+
+        <div class="row">
+          <label for="timer">Timer <output id="timerOut"></output></label>
+          <select id="timer">
+            <option value="0">Original (400 / 300 / 200)</option>
+            <option value="5">500</option>
+            <option value="6">600</option>
+            <option value="7">700</option>
+            <option value="8">800</option>
+            <option value="9">900</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="lives">Starting lives <output id="livesOut"></output></label>
+          <input type="range" id="lives" min="1" max="9" step="1">
+        </div>
+
+        <div class="row">
+          <label for="jump">Jump height <output id="jumpOut"></output></label>
+          <input type="range" id="jump" min="0" max="3" step="1">
+        </div>
+
+        <div class="row">
+          <label for="run">Run speed <output id="runOut"></output></label>
+          <input type="range" id="run" min="40" max="72" step="4">
+        </div>
+
+        <div class="row">
+          <label for="walk">Walk speed <output id="walkOut"></output></label>
+          <input type="range" id="walk" min="24" max="48" step="4">
+        </div>
+
+        <div class="row">
+          <label for="music">Background music</label>
+          <select id="music">
+            <option value="star">Star song</option>
+            <option value="original">Original (changes per level)</option>
+            <option value="ground">Overworld</option>
+            <option value="underground">Underground</option>
+            <option value="water">Water</option>
+            <option value="castle">Castle</option>
+            <option value="bonus">Bonus room</option>
+          </select>
+        </div>
+
+        <label class="toggle"><input type="checkbox" id="starForever"> Rainbow star Mario forever</label>
+        <label class="toggle"><input type="checkbox" id="bricks"> Small Mario breaks bricks</label>
+        <label class="toggle"><input type="checkbox" id="ramBricks"> Smash through blocks by running or jumping into them</label>
+
+        <hr>
+        <div class="buttons">
+          <button id="downloadNes">Download .nes</button>
+          <button id="downloadIps">Download .ips</button>
+          <button class="wide" id="reset">Reset to defaults</button>
+        </div>
+      </div>
+
+      <div id="cheatPanel" hidden>
+        <hr>
+        <h2>Cheats</h2>
+        <p class="note">Type a Game Genie code (like <code>SXIOPO</code>) or a RAM code (<code>075A:09</code> keeps that memory value fixed).</p>
+        <form class="cheat-form" id="cheatForm">
+          <input id="cheatInput" autocomplete="off" spellcheck="false" placeholder="Code">
+          <button type="submit">Add</button>
+        </form>
+        <div class="presets" id="presets"></div>
+        <ul class="cheats" id="cheatList"></ul>
+      </div>
+      <p class="note" id="emuCheatNote" hidden>Cheats: open the emulator's settings (gear icon) and choose Cheats.</p>
+    </aside>
+  </section>
+
+  <footer>Giant Mario uses the Giant Mario v1.2 and Invincible Mario patches (romhacking.net hack #6142). NES games run on jsnes; other systems run on EmulatorJS. No games are included: you add your own.</footer>
+</main>
+
+<script src="jsnes.min.js"></script>
+<script src="base-patch.js"></script>
+<script src="mods.js"></script>
+<script>
+const M = GiantMarioMods;
+const $ = id => document.getElementById(id);
+const basePatch = Uint8Array.from(atob(BASE_PATCH), c => c.charCodeAt(0));
+
+const SETTINGS_KEY = 'giant-mario-mod-settings';
+const OLD_ROM_KEY = 'giant-mario-mod-rom';
+const IN_ARTIFACT = !!(window.claude && window.claude.use);
+
+const SYSTEMS = {
+  nes: { label: 'NES', family: 'nintendo', ext: ['nes'] },
+  snes: { label: 'SNES', family: 'nintendo', core: 'snes', ext: ['sfc', 'smc'] },
+  gb: { label: 'Game Boy', family: 'handheld', core: 'gb', ext: ['gb', 'gbc'] },
+  gba: { label: 'Game Boy Advance', family: 'handheld', core: 'gba', ext: ['gba'] },
+  genesis: { label: 'Genesis', family: 'sega', core: 'segaMD', ext: ['md', 'gen', 'smd', 'bin'] },
+  sms: { label: 'Master System', family: 'sega', core: 'segaMS', ext: ['sms'] },
+  gg: { label: 'Game Gear', family: 'sega', core: 'segaGG', ext: ['gg'] },
+  n64: { label: 'Nintendo 64', family: 'nintendo', core: 'n64', ext: ['n64', 'z64', 'v64'] },
+  nds: { label: 'Nintendo DS', family: 'handheld', core: 'nds', ext: ['nds'] },
+};
+
+let base = null;
+let opts = { ...M.DEFAULTS };
+let saver = null;
+let current = null;
+
+function store(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) {}
+}
+function load(key) {
+  try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+
+function setStatus(id, text, error = false) {
+  $(id).textContent = text;
+  $(id).className = 'status' + (error ? ' error' : '');
+}
+
+function percent(v, original) {
+  return Math.round(v / original * 100) + '%';
+}
+
+function formatSize(bytes) {
+  return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+}
+
+function toBinaryString(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return s;
+}
+
+function detectSystem(name, bytes) {
+  if (bytes[0] === 0x4e && bytes[1] === 0x45 && bytes[2] === 0x53 && bytes[3] === 0x1a) return 'nes';
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return Object.keys(SYSTEMS).find(key => SYSTEMS[key].ext.includes(ext)) || null;
+}
+
+function isGiantMario(bytes) {
+  try { M.prepareBase(bytes, basePatch); return true; } catch (e) { return false; }
+}
+
+function cleanName(name) {
+  return name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim() || 'Untitled game';
+}
+
+const library = (() => {
+  const memory = new Map();
+  let dbPromise = null;
+
+  function open() {
+    if (!dbPromise) {
+      dbPromise = new Promise((resolve, reject) => {
+        try {
+          const req = indexedDB.open('game-library', 1);
+          req.onupgradeneeded = () => req.result.createObjectStore('games', { keyPath: 'id' });
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+    return dbPromise;
+  }
+
+  async function run(mode, action) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('games', mode);
+      const req = action(tx.objectStore('games'));
+      tx.oncomplete = () => resolve(req.result);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  return {
+    async all() {
+      try { return await run('readonly', s => s.getAll()); } catch (e) { return [...memory.values()]; }
+    },
+    async put(game) {
+      memory.set(game.id, game);
+      try { await run('readwrite', s => s.put(game)); return true; } catch (e) { return false; }
+    },
+    async remove(id) {
+      memory.delete(id);
+      try { await run('readwrite', s => s.delete(id)); } catch (e) {}
+    },
+  };
+})();
+
+async function addFiles(files) {
+  const existing = await library.all();
+  let added = 0;
+  const skipped = [];
+  let saved = true;
+  for (const file of files) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const system = detectSystem(file.name, bytes);
+    if (!system) {
+      skipped.push(file.name);
+      continue;
+    }
+    const same = existing.find(g => g.file === file.name && g.size === bytes.length);
+    const game = {
+      id: same ? same.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      name: cleanName(file.name),
+      file: file.name,
+      system,
+      size: bytes.length,
+      mod: system === 'nes' && isGiantMario(bytes),
+      added: Date.now(),
+      data: bytes.buffer,
+    };
+    saved = (await library.put(game)) && saved;
+    added++;
+  }
+  const parts = [];
+  if (added) parts.push(`Added ${added} game${added === 1 ? '' : 's'}.`);
+  if (skipped.length) parts.push(`Skipped ${skipped.join(', ')}: not a supported game file. Unzip .zip files first.`);
+  if (!saved) parts.push('This browser could not save games permanently, so they last until you close the page.');
+  setStatus('libStatus', parts.join(' '), skipped.length > 0 && !added);
+  renderLibrary();
+}
+
+async function renderLibrary() {
+  const games = (await library.all()).sort((a, b) => b.added - a.added);
+  const query = $('search').value.trim().toLowerCase();
+  const shown = games.filter(g => !query || (g.name + ' ' + g.file + ' ' + SYSTEMS[g.system].label).toLowerCase().includes(query));
+  const cards = $('cards');
+  cards.textContent = '';
+  $('empty').hidden = games.length > 0;
+  $('search').hidden = games.length < 2;
+  $('noMatch').hidden = shown.length > 0 || games.length === 0;
+  for (const game of shown) {
+    const sys = SYSTEMS[game.system];
+    const card = document.createElement('article');
+    card.className = 'card';
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + sys.family;
+    badge.textContent = sys.label;
+    const title = document.createElement('h3');
+    title.textContent = game.mod ? game.name + ' (Giant Mario)' : game.name;
+    const info = document.createElement('p');
+    info.textContent = formatSize(game.size) + (game.mod ? ' · mod settings' : '') + (IN_ARTIFACT && sys.core ? ' · needs the PC or hosted copy' : '');
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    const play = document.createElement('button');
+    play.className = 'primary';
+    play.textContent = '▶ Play';
+    play.addEventListener('click', () => openGame(game));
+    const del = document.createElement('button');
+    del.textContent = 'Delete';
+    del.addEventListener('click', async () => {
+      if (del.dataset.armed) {
+        await library.remove(game.id);
+        setStatus('libStatus', `Deleted ${game.name}.`);
+        renderLibrary();
+        return;
+      }
+      del.dataset.armed = '1';
+      del.textContent = 'Tap again to delete';
+      del.classList.add('danger');
+      setTimeout(() => {
+        if (!del.isConnected) return;
+        delete del.dataset.armed;
+        del.textContent = 'Delete';
+        del.classList.remove('danger');
+      }, 3000);
+    });
+    actions.append(play, del);
+    card.append(badge, title, info, actions);
+    cards.append(card);
+  }
+}
+
+function showLibrary() {
+  player.stop();
+  emu.stop();
+  current = null;
+  base = null;
+  $('playView').hidden = true;
+  $('libraryView').hidden = false;
+  $('backToLibrary').hidden = true;
+  renderLibrary();
+}
+
+function openGame(game) {
+  if (document.activeElement) document.activeElement.blur();
+  current = game;
+  const sys = SYSTEMS[game.system];
+  $('libraryView').hidden = true;
+  $('playView').hidden = false;
+  $('backToLibrary').hidden = false;
+  $('gameName').textContent = game.mod ? game.name + ' (Giant Mario)' : game.name;
+  $('gameBadge').className = 'badge ' + sys.family;
+  $('gameBadge').textContent = sys.label;
+  setStatus('status', '');
+
+  const nes = game.system === 'nes';
+  $('playView').classList.toggle('emu-mode', !nes);
+  $('screenBox').hidden = !nes;
+  $('emuFrame').hidden = nes || IN_ARTIFACT;
+  $('emuNotice').hidden = nes || !IN_ARTIFACT;
+  $('restart').hidden = !nes && IN_ARTIFACT;
+  $('modPanel').hidden = !(nes && game.mod);
+  $('cheatPanel').hidden = !nes;
+  $('emuCheatNote').hidden = nes || IN_ARTIFACT;
+  if (nes) cheats.open(game);
+
+  const bytes = new Uint8Array(game.data);
+  if (nes) {
+    base = game.mod ? M.prepareBase(bytes, basePatch) : null;
+    startNes();
+    if (game.mod) setStatus('status', bytes.length === M.ORIGINAL_SIZE ? 'Original ROM: Giant Mario applied.' : 'Giant Mario ROM loaded.');
+  } else if (!IN_ARTIFACT) {
+    emu.start(game);
+  }
+  window.scrollTo({ top: 0 });
+}
+
+function startNes() {
+  if (!current) return;
+  player.start(base ? M.buildRom(base, opts) : new Uint8Array(current.data));
+}
+
+function renderOptions() {
+  $('timer').value = String(opts.timer);
+  $('lives').value = opts.lives;
+  $('jump').value = opts.jump;
+  $('run').value = opts.run;
+  $('walk').value = opts.walk;
+  $('music').value = opts.music;
+  $('starForever').checked = opts.starForever;
+  $('bricks').checked = opts.bricks;
+  $('ramBricks').checked = opts.ramBricks;
+  renderLabels();
+}
+
+function renderLabels() {
+  $('timerOut').textContent = opts.timer ? opts.timer * 100 + 's' : '';
+  $('livesOut').textContent = opts.lives;
+  $('jumpOut').textContent = ['Normal', 'High', 'Very high', 'Super high'][opts.jump];
+  $('runOut').textContent = percent(opts.run, 0x28);
+  $('walkOut').textContent = percent(opts.walk, 0x18);
+}
+
+function applyLive(prev) {
+  if (!base || !player.running()) return;
+  player.patch(M.buildRom(base, opts));
+  if (player.peek(0x770) !== 1) return;
+  if (opts.timer && opts.timer !== prev.timer) player.poke(0x7f8, opts.timer);
+  if (opts.lives !== prev.lives) player.poke(0x75a, opts.lives - 1);
+  if (opts.music !== prev.music) player.poke(0xfb, M.musicValue(opts.music, player.peek(0x74e)));
+}
+
+function readOptions() {
+  const prev = opts;
+  opts = {
+    timer: +$('timer').value,
+    lives: +$('lives').value,
+    jump: +$('jump').value,
+    run: +$('run').value,
+    walk: +$('walk').value,
+    music: $('music').value,
+    starForever: $('starForever').checked,
+    bricks: $('bricks').checked,
+    ramBricks: $('ramBricks').checked,
+  };
+  renderLabels();
+  store(SETTINGS_KEY, JSON.stringify(opts));
+  applyLive(prev);
+}
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function zipOne(name, data) {
+  const fileName = new TextEncoder().encode(name);
+  const crc = crc32(data);
+  const local = new DataView(new ArrayBuffer(30));
+  local.setUint32(0, 0x04034b50, true);
+  local.setUint16(4, 20, true);
+  local.setUint32(14, crc, true);
+  local.setUint32(18, data.length, true);
+  local.setUint32(22, data.length, true);
+  local.setUint16(26, fileName.length, true);
+  const central = new DataView(new ArrayBuffer(46));
+  central.setUint32(0, 0x02014b50, true);
+  central.setUint16(4, 20, true);
+  central.setUint16(6, 20, true);
+  central.setUint32(16, crc, true);
+  central.setUint32(20, data.length, true);
+  central.setUint32(24, data.length, true);
+  central.setUint16(28, fileName.length, true);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, 1, true);
+  end.setUint16(10, 1, true);
+  end.setUint32(12, 46 + fileName.length, true);
+  end.setUint32(16, 30 + fileName.length + data.length, true);
+  return new Blob([local, fileName, data, central, fileName, end]);
+}
+
+async function download(bytes, name) {
+  if (saver) {
+    try {
+      await saver.save({ filename: name.replace(/\.\w+$/, '.zip'), data: zipOne(name, bytes) });
+      setStatus('status', `Saved ${name} inside a .zip. Unzip it in the Files app, then import the file into Delta.`);
+    } catch (e) {
+      if (e && e.code !== 'declined') setStatus('status', 'This view cannot save files. Open the page in a browser to download.', true);
+    }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const player = (() => {
+  const canvas = $('screen');
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(256, 240);
+  const pixels = new Uint32Array(image.data.buffer);
+  const SIZE = 16384;
+  const MASK = SIZE - 1;
+  const left = new Float32Array(SIZE);
+  const right = new Float32Array(SIZE);
+  const sources = {};
+  const held = {};
+  const romCheat = new Int16Array(0x8000).fill(-1);
+  const romCompare = new Int16Array(0x8000).fill(-1);
+  let ramCheats = [];
+  let write = 0;
+  let read = 0;
+  let nes = null;
+  let loaded = null;
+  let audio = null;
+  let frameId = 0;
+  let last = 0;
+  let acc = 0;
+
+  function onFrame(fb) {
+    for (let i = 0; i < 61440; i++) pixels[i] = 0xff000000 | fb[i];
+    ctx.putImageData(image, 0, 0);
+  }
+
+  function onSample(l, r) {
+    left[write] = l;
+    right[write] = r;
+    write = (write + 1) & MASK;
+  }
+
+  function ensureAudio() {
+    if (audio) return audio;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    audio = new Ctx();
+    const node = audio.createScriptProcessor(1024, 0, 2);
+    node.onaudioprocess = e => {
+      const L = e.outputBuffer.getChannelData(0);
+      const R = e.outputBuffer.getChannelData(1);
+      for (let i = 0; i < L.length; i++) {
+        if (nes && read !== write) {
+          L[i] = left[read];
+          R[i] = right[read];
+          read = (read + 1) & MASK;
+        } else {
+          L[i] = R[i] = 0;
+        }
+      }
+    };
+    node.connect(audio.destination);
+    return audio;
+  }
+
+  function press(source, name, down) {
+    sources[name] = sources[name] || new Set();
+    down ? sources[name].add(source) : sources[name].delete(source);
+    const on = sources[name].size > 0;
+    if (on === !!held[name]) return;
+    held[name] = on;
+    if (nes) on ? nes.buttonDown(1, jsnes.Controller['BUTTON_' + name]) : nes.buttonUp(1, jsnes.Controller['BUTTON_' + name]);
+  }
+
+  function pollGamepads() {
+    const list = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const gp of list) {
+      if (!gp) continue;
+      const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+      const ax = gp.axes[0] || 0;
+      const ay = gp.axes[1] || 0;
+      const source = 'pad' + gp.index;
+      press(source, 'A', b(0));
+      press(source, 'B', b(1) || b(2));
+      press(source, 'SELECT', b(8));
+      press(source, 'START', b(9));
+      press(source, 'UP', b(12) || ay < -0.5);
+      press(source, 'DOWN', b(13) || ay > 0.5);
+      press(source, 'LEFT', b(14) || ax < -0.5);
+      press(source, 'RIGHT', b(15) || ax > 0.5);
+    }
+  }
+
+  function loop(now) {
+    frameId = requestAnimationFrame(loop);
+    acc += Math.min(now - last, 100);
+    last = now;
+    pollGamepads();
+    while (acc >= 1000 / 60) {
+      nes.frame();
+      for (const c of ramCheats) nes.cpu.mem[c.address] = c.value;
+      acc -= 1000 / 60;
+    }
+  }
+
+  function hookCheats() {
+    const mapper = nes.mmap;
+    const load = mapper.load.bind(mapper);
+    mapper.load = addr => {
+      const value = load(addr);
+      if (addr < 0x8000) return value;
+      const cheat = romCheat[addr - 0x8000];
+      if (cheat < 0) return value;
+      const compare = romCompare[addr - 0x8000];
+      return compare < 0 || compare === value ? cheat : value;
+    };
+  }
+
+  function setCheats(list) {
+    romCheat.fill(-1);
+    romCompare.fill(-1);
+    ramCheats = [];
+    for (const c of list) {
+      if (c.kind === 'ram') {
+        ramCheats.push(c);
+      } else {
+        romCheat[c.address - 0x8000] = c.value;
+        romCompare[c.address - 0x8000] = c.compare;
+      }
+    }
+  }
+
+  function start(rom) {
+    cancelAnimationFrame(frameId);
+    const a = ensureAudio();
+    if (a.state === 'suspended') a.resume().catch(() => {});
+    nes = new jsnes.NES({ sampleRate: a.sampleRate, onFrame, onAudioSample: onSample });
+    nes.loadROM(toBinaryString(rom));
+    hookCheats();
+    loaded = rom;
+    for (const name in held) if (held[name]) nes.buttonDown(1, jsnes.Controller['BUTTON_' + name]);
+    write = read = 0;
+    last = performance.now();
+    acc = 0;
+    frameId = requestAnimationFrame(loop);
+  }
+
+  function stop() {
+    cancelAnimationFrame(frameId);
+    nes = null;
+    loaded = null;
+    ctx.clearRect(0, 0, 256, 240);
+  }
+
+  function patch(rom) {
+    if (!nes || !loaded) return;
+    for (let o = 16; o < 16 + 0x8000; o++) {
+      if (rom[o] === loaded[o]) continue;
+      const p = o - 16;
+      if (nes.cpu.mem[0x8000 + p] === loaded[o]) nes.cpu.mem[0x8000 + p] = rom[o];
+      nes.rom.rom[p >> 14][p & 0x3fff] = rom[o];
+    }
+    loaded = rom;
+  }
+
+  const peek = addr => nes ? nes.cpu.mem[addr] : -1;
+  const poke = (addr, value) => { if (nes) nes.cpu.mem[addr] = value & 0xff; };
+  const running = () => !!nes;
+
+  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(type => {
+    document.addEventListener(type, () => {
+      if (audio && audio.state !== 'running') audio.resume().catch(() => {});
+    }, true);
+  });
+
+  const keymap = {
+    ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT',
+    KeyW: 'UP', KeyS: 'DOWN', KeyA: 'LEFT', KeyD: 'RIGHT',
+    KeyX: 'A', Space: 'A', KeyK: 'A', KeyZ: 'B', KeyJ: 'B',
+    Enter: 'START', ShiftLeft: 'SELECT', ShiftRight: 'SELECT',
+  };
+  function key(e, down) {
+    if (!nes || !keymap[e.code] || ['SELECT', 'INPUT', 'BUTTON'].includes(e.target.tagName)) return;
+    e.preventDefault();
+    press('key:' + e.code, keymap[e.code], down);
+  }
+  document.addEventListener('keydown', e => key(e, true));
+  document.addEventListener('keyup', e => key(e, false));
+
+  function releaseAll(prefix) {
+    for (const name in sources) [...sources[name]].filter(s => s.startsWith(prefix)).forEach(s => press(s, name, false));
+  }
+  window.addEventListener('blur', () => releaseAll('key:'));
+
+  const screen = $('screenBox');
+  screen.addEventListener('pointerdown', e => {
+    if (!nes) return;
+    e.preventDefault();
+    try { screen.setPointerCapture(e.pointerId); } catch (err) {}
+    press('screen' + e.pointerId, e.button === 2 ? 'B' : 'A', true);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
+    screen.addEventListener(type, e => releaseAll('screen' + e.pointerId));
+  });
+  screen.addEventListener('contextmenu', e => e.preventDefault());
+
+  return { start, stop, press, patch, peek, poke, running, setCheats };
+})();
+
+const cheats = (() => {
+  const LETTERS = 'APZLGITYEOXUKSVN';
+  const PRESETS = [
+    { label: 'Infinite lives', codes: ['SXIOPO'] },
+    { label: 'Lives stay at 9', codes: ['075A:08'] },
+    { label: 'Timer stays high', codes: ['07F8:09'] },
+    { label: 'Always Fire Mario', codes: ['0756:02', '0754:00'] },
+  ];
+  let game = null;
+  let list = [];
+
+  function decodeGameGenie(code) {
+    const n = [...code].map(c => LETTERS.indexOf(c));
+    if ((n.length !== 6 && n.length !== 8) || n.some(v => v < 0)) return null;
+    const address = 0x8000 | ((n[3] & 7) << 12) | ((n[5] & 7) << 8) | ((n[4] & 8) << 8) | ((n[2] & 7) << 4) | ((n[1] & 8) << 4) | (n[4] & 7) | (n[3] & 8);
+    const value = ((n[1] & 7) << 4) | ((n[0] & 8) << 4) | (n[0] & 7) | ((n.length === 6 ? n[5] : n[7]) & 8);
+    const compare = n.length === 8 ? ((n[7] & 7) << 4) | ((n[6] & 8) << 4) | (n[6] & 7) | (n[5] & 8) : -1;
+    return { kind: 'rom', address, value, compare };
+  }
+
+  function parse(text) {
+    const code = text.toUpperCase().replace(/[\s-]/g, '');
+    const ram = code.match(/^([0-9A-F]{1,4})[:=]([0-9A-F]{1,2})$/);
+    if (ram) {
+      const address = parseInt(ram[1], 16);
+      const ok = address < 0x800 || (address >= 0x6000 && address < 0x8000);
+      return ok ? { kind: 'ram', address, value: parseInt(ram[2], 16), code: ram[1].padStart(4, '0') + ':' + ram[2].padStart(2, '0') } : null;
+    }
+    const gg = decodeGameGenie(code);
+    return gg ? { ...gg, code } : null;
+  }
+
+  function key() {
+    return 'cheats:' + game.id;
+  }
+
+  function save() {
+    store(key(), JSON.stringify(list.map(c => ({ code: c.code, label: c.label }))));
+    player.setCheats(list);
+  }
+
+  function render() {
+    const ul = $('cheatList');
+    ul.textContent = '';
+    for (const c of list) {
+      const li = document.createElement('li');
+      const span = document.createElement('span');
+      span.textContent = c.label ? `${c.label} (${c.code})` : c.code;
+      const remove = document.createElement('button');
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => {
+        list = list.filter(x => x !== c);
+        save();
+        render();
+      });
+      li.append(span, remove);
+      ul.append(li);
+    }
+  }
+
+  function add(text, label) {
+    const c = parse(text);
+    if (!c) return false;
+    if (!list.some(x => x.code === c.code)) list.push({ ...c, label });
+    save();
+    render();
+    return true;
+  }
+
+  $('cheatForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const text = $('cheatInput').value;
+    if (!text.trim()) return;
+    if (add(text)) {
+      $('cheatInput').value = '';
+      setStatus('status', 'Cheat added.');
+    } else {
+      setStatus('status', 'That code was not recognised. Use a 6 or 8 letter Game Genie code, or a RAM code like 075A:09.', true);
+    }
+  });
+
+  return {
+    open(g) {
+      game = g;
+      list = [];
+      try {
+        for (const saved of JSON.parse(load(key()) || '[]')) {
+          const c = parse(saved.code);
+          if (c) list.push({ ...c, label: saved.label });
+        }
+      } catch (e) {}
+      player.setCheats(list);
+      const presets = $('presets');
+      presets.textContent = '';
+      if (g.mod) {
+        for (const p of PRESETS) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = '+ ' + p.label;
+          b.addEventListener('click', () => {
+            p.codes.forEach(code => add(code, p.label));
+            b.blur();
+          });
+          presets.append(b);
+        }
+      }
+      render();
+    },
+    decodeGameGenie,
+  };
+})();
+
+const emu = (() => {
+  const frame = $('emuFrame');
+  let pending = null;
+
+  window.addEventListener('message', e => {
+    if (e.source !== frame.contentWindow || !e.data || e.data.type !== 'emu-ready' || !pending) return;
+    const copy = pending.data.slice(0);
+    frame.contentWindow.postMessage({ type: 'emu-load', core: SYSTEMS[pending.system].core, name: pending.file, data: copy }, '*', [copy]);
+  });
+
+  return {
+    start(game) {
+      pending = game;
+      frame.src = 'emu.html?' + Date.now();
+    },
+    stop() {
+      pending = null;
+      frame.removeAttribute('src');
+    },
+  };
+})();
+
+(() => {
+  const pad = $('pad');
+  const touches = new Map();
+  const shown = [...pad.querySelectorAll('[data-show]')];
+
+  function zoneAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const zone = el && el.closest('[data-btn]');
+    return zone && pad.contains(zone) && zone.dataset.btn ? zone.dataset.btn.split(' ') : [];
+  }
+
+  function update(id, names) {
+    const before = touches.get(id) || [];
+    before.filter(n => !names.includes(n)).forEach(n => player.press('touch' + id, n, false));
+    names.filter(n => !before.includes(n)).forEach(n => player.press('touch' + id, n, true));
+    names.length ? touches.set(id, names) : touches.delete(id);
+    const active = new Set([...touches.values()].flat());
+    shown.forEach(el => el.classList.toggle('on', active.has(el.dataset.show)));
+  }
+
+  pad.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { pad.setPointerCapture(e.pointerId); } catch (err) {}
+    update(e.pointerId, zoneAt(e.clientX, e.clientY));
+  });
+  pad.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse' && !e.buttons) return;
+    update(e.pointerId, zoneAt(e.clientX, e.clientY));
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
+    pad.addEventListener(type, e => update(e.pointerId, []));
+  });
+  pad.addEventListener('contextmenu', e => e.preventDefault());
+})();
+
+$('addGames').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length) await addFiles(files);
+});
+
+$('backToLibrary').addEventListener('click', showLibrary);
+$('search').addEventListener('input', renderLibrary);
+
+document.querySelectorAll('#modPanel select, #modPanel input').forEach(el => {
+  el.addEventListener('input', readOptions);
+  el.addEventListener('change', () => el.blur());
+});
+
+$('restart').addEventListener('click', () => {
+  if (!current) return;
+  current.system === 'nes' ? startNes() : emu.start(current);
+  $('restart').blur();
+});
+
+$('downloadNes').addEventListener('click', () => base && download(M.buildRom(base, opts), 'Giant Mario Mod.nes'));
+$('downloadIps').addEventListener('click', () => base && download(M.makeIps(base, M.buildRom(base, opts)), 'Giant Mario Mod.ips'));
+
+$('reset').addEventListener('click', () => {
+  const prev = opts;
+  opts = { ...M.DEFAULTS };
+  store(SETTINGS_KEY, JSON.stringify(opts));
+  renderOptions();
+  applyLive(prev);
+  $('reset').blur();
+});
+
+try {
+  const saved = JSON.parse(load(SETTINGS_KEY) || 'null');
+  if (saved) opts = { ...M.DEFAULTS, ...saved };
+} catch (e) {}
+renderOptions();
+
+(async () => {
+  const old = load(OLD_ROM_KEY);
+  if (old) {
+    try {
+      const bytes = Uint8Array.from(atob(old), c => c.charCodeAt(0));
+      const ok = await library.put({
+        id: 'giant-mario',
+        name: 'Super Mario Bros.',
+        file: 'Giant Mario.nes',
+        system: 'nes',
+        size: bytes.length,
+        mod: isGiantMario(bytes),
+        added: Date.now(),
+        data: bytes.buffer,
+      });
+      if (ok) localStorage.removeItem(OLD_ROM_KEY);
+    } catch (e) {}
+  }
+  renderLibrary();
+})();
+
+if (IN_ARTIFACT) {
+  window.claude.use('downloads').then(d => {
+    saver = d;
+    if (!d) ['downloadNes', 'downloadIps'].forEach(id => $(id).hidden = true);
+  });
+}
+</script>
+</body>
+</html>

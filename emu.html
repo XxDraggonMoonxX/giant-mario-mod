@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #a39db8; font: 14px system-ui, sans-serif; }
+  #game { width: 100%; height: 100%; }
+  .wait { height: 100%; display: grid; place-items: center; text-align: center; padding: 20px; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="game"><div class="wait" id="wait">Loading the emulator…</div></div>
+<script>
+const DATA_PATH = 'https://cdn.emulatorjs.org/stable/data/';
+
+window.addEventListener('message', e => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'emu-load' || window.EJS_core) return;
+  window.EJS_player = '#game';
+  window.EJS_core = msg.core;
+  window.EJS_gameName = msg.name.replace(/\.[^.]+$/, '');
+  window.EJS_gameUrl = URL.createObjectURL(new File([msg.data], msg.name));
+  window.EJS_pathtodata = DATA_PATH;
+  window.EJS_color = '#ffcc33';
+  window.EJS_backgroundColor = '#000000';
+  const script = document.createElement('script');
+  script.src = DATA_PATH + 'loader.js';
+  script.onerror = () => {
+    document.getElementById('wait').textContent = 'The emulator could not load. Check your internet connection: SNES, Game Boy, GBA, Genesis and other systems download the emulator the first time you play.';
+  };
+  document.body.appendChild(script);
+});
+
+parent.postMessage({ type: 'emu-ready' }, '*');
+</script>
+</body>
+</html>
