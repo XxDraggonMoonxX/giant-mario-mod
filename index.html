@@ -534,6 +534,10 @@ function isGiantMario(bytes) {
   try { M.prepareBase(bytes, basePatch); return true; } catch (e) { return false; }
 }
 
+function displayName(game) {
+  return game.mod && !/giant mario/i.test(game.name) ? game.name + ' (Giant Mario)' : game.name;
+}
+
 function cleanName(name) {
   return name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim() || 'Untitled game';
 }
@@ -634,7 +638,7 @@ async function renderLibrary() {
     badge.className = 'badge ' + sys.family;
     badge.textContent = sys.label;
     const title = document.createElement('h3');
-    title.textContent = game.mod ? game.name + ' (Giant Mario)' : game.name;
+    title.textContent = displayName(game);
     const info = document.createElement('p');
     info.textContent = formatSize(game.size) + (game.mod ? ' · mod settings' : '') + (IN_ARTIFACT && sys.core ? ' · needs the PC or hosted copy' : '');
     const actions = document.createElement('div');
@@ -686,7 +690,7 @@ function openGame(game) {
   $('libraryView').hidden = true;
   $('playView').hidden = false;
   $('backToLibrary').hidden = false;
-  $('gameName').textContent = game.mod ? game.name + ' (Giant Mario)' : game.name;
+  $('gameName').textContent = displayName(game);
   $('gameBadge').className = 'badge ' + sys.family;
   $('gameBadge').textContent = sys.label;
   setStatus('status', '');
@@ -1253,7 +1257,31 @@ renderOptions();
     } catch (e) {}
   }
   renderLibrary();
+  await loadFolderGames();
 })();
+
+async function loadFolderGames() {
+  let list;
+  try {
+    const res = await fetch('games/list.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    list = await res.json();
+  } catch (e) {
+    return;
+  }
+  if (!Array.isArray(list)) return;
+  const existing = await library.all();
+  const files = [];
+  for (const item of list) {
+    if (!item || typeof item.file !== 'string') continue;
+    if (existing.some(g => g.file === item.file && g.size === item.size)) continue;
+    try {
+      const res = await fetch('games/' + encodeURIComponent(item.file));
+      if (res.ok) files.push(new File([await res.arrayBuffer()], item.file));
+    } catch (e) {}
+  }
+  if (files.length) await addFiles(files);
+}
 
 if (IN_ARTIFACT) {
   window.claude.use('downloads').then(d => {

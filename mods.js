@@ -44,9 +44,9 @@ const SIGNATURE = [
 ];
 
 const RAM_BRICKS = [
-  [0x0350, `c9 51 90 44 c9 64 90 10 c9 c0 90 3c c9 c5 b0 38 c9 c2 f0 34 c9 c3 f0 30
+  [0x0350, `a4 0e c0 08 d0 42 c9 c5 f0 3e aa a5 02 38 e9 10 a8 b1 06 c9 25 f0 31 8a
             a8 a5 9f 48 ad 33 04 48 98 20 ed bc ad ee 03 49 01 aa 68 8d 33 04 68 85 9f
-            b5 26 c9 12 d0 11 bd e6 03 85 06 a9 05 85 07 bc e4 03 a9 00 91 06 60 4c 4b df`],
+            b5 26 c9 12 d0 10 bd e6 03 85 06 a9 05 85 07 bc e4 03 a9 00 91 06 60 4c 4b df`],
   [0x0274, '38 ea ea'],
   [0x5e0f, '4c 40 83'],
 ];
