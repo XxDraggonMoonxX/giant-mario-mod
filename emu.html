@@ -61,6 +61,20 @@ window.EJS_defaultControls = {
 };
 
 const held = {};
+let cheats = [];
+let cheatTimer = 0;
+
+function applyCheats() {
+  const emulator = window.EJS_emulator;
+  if (!emulator || !emulator.gameManager || !emulator.started) {
+    clearTimeout(cheatTimer);
+    cheatTimer = setTimeout(applyCheats, 500);
+    return;
+  }
+  const manager = emulator.gameManager;
+  manager.resetCheat();
+  cheats.forEach((code, index) => manager.setCheat(index, 1, code));
+}
 
 function press(code, down) {
   const name = KEYS[code];
@@ -99,6 +113,11 @@ window.addEventListener('message', e => {
   }
   if (msg.type === 'emu-release') {
     releaseAll();
+    return;
+  }
+  if (msg.type === 'emu-cheats') {
+    cheats = Array.isArray(msg.cheats) ? msg.cheats : [];
+    applyCheats();
     return;
   }
   if (msg.type !== 'emu-load' || window.EJS_core) return;

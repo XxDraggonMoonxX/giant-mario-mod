@@ -297,6 +297,20 @@
   }
   .cheats li span { overflow-wrap: anywhere; }
   .cheats li button { padding: 4px 10px; font-size: 13px; }
+  .cheats li label { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; min-width: 0; }
+  .cheats li input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+  .emu-cheat-form { display: grid; gap: 8px; margin-top: 12px; }
+  .emu-cheat-form input, .emu-cheat-form textarea {
+    width: 100%;
+    min-width: 0;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 10px;
+    font: 13px ui-monospace, monospace;
+  }
+  .emu-cheat-form input { font-family: inherit; }
 
   @media (max-width: 860px) {
     main { padding-block: 12px 32px; gap: 16px; }
@@ -472,7 +486,18 @@
         <div class="presets" id="presets"></div>
         <ul class="cheats" id="cheatList"></ul>
       </div>
-      <p class="note" id="emuCheatNote" hidden>Cheats: open the emulator's settings (gear icon) and choose Cheats.</p>
+      <div id="emuCheatPanel" hidden>
+        <hr>
+        <h2>Cheats</h2>
+        <p class="note">Tick a cheat to turn it on while you play. Your choices are saved for this game.</p>
+        <ul class="cheats" id="emuCheatList"></ul>
+        <form class="emu-cheat-form" id="emuCheatForm">
+          <input id="emuCheatName" autocomplete="off" placeholder="Cheat name">
+          <textarea id="emuCheatCode" rows="3" spellcheck="false" placeholder="Code, one line per row"></textarea>
+          <button type="submit">Add cheat</button>
+        </form>
+        <p class="note" id="emuCheatSource" hidden></p>
+      </div>
     </aside>
   </section>
 
@@ -787,7 +812,8 @@ function openGame(game) {
   $('restart').hidden = !nes && IN_ARTIFACT;
   $('modPanel').hidden = !(nes && game.mod);
   $('cheatPanel').hidden = !nes;
-  $('emuCheatNote').hidden = nes || IN_ARTIFACT;
+  $('emuCheatPanel').hidden = nes || IN_ARTIFACT;
+  if (!nes && !IN_ARTIFACT) emuCheats.open(game);
   $('emuKeys').hidden = nes || IN_ARTIFACT;
   if (!nes) renderEmuKeys(game.system);
   if (nes) cheats.open(game);
@@ -1292,7 +1318,14 @@ const emu = (() => {
     if (e.source !== frame.contentWindow || !e.data || e.data.type !== 'emu-ready' || !pending) return;
     const copy = pending.data.slice(0);
     frame.contentWindow.postMessage({ type: 'emu-load', core: SYSTEMS[pending.system].core, name: pending.file, data: copy }, '*', [copy]);
+    if (lastCheats) frame.contentWindow.postMessage(lastCheats, '*');
   });
+
+  let lastCheats = null;
+  function send(msg) {
+    if (msg.type === 'emu-cheats') lastCheats = msg;
+    if (pending && frame.contentWindow) frame.contentWindow.postMessage(msg, '*');
+  }
 
   const FORWARD = new Set([
     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
@@ -1320,7 +1353,109 @@ const emu = (() => {
     },
     stop() {
       pending = null;
+      lastCheats = null;
       frame.removeAttribute('src');
+    },
+    send,
+  };
+})();
+
+const emuCheats = (() => {
+  let db = null;
+  let game = null;
+  let list = [];
+  const ready = fetch('cheats.json', { cache: 'no-store' })
+    .then(res => (res.ok ? res.json() : null))
+    .catch(() => null)
+    .then(data => { db = data; });
+
+  function entryFor(g) {
+    if (!db || !Array.isArray(db.games)) return null;
+    const name = g.name.toLowerCase();
+    return db.games.find(e => e.system === g.system && e.names.some(n => n.toLowerCase() === name)) || null;
+  }
+
+  function key() {
+    return 'emucheats:' + game.id;
+  }
+
+  function send() {
+    emu.send({ type: 'emu-cheats', cheats: list.filter(c => c.on).map(c => c.code.join('+')) });
+  }
+
+  function save() {
+    store(key(), JSON.stringify({
+      on: list.filter(c => c.builtIn && c.on).map(c => c.name),
+      custom: list.filter(c => !c.builtIn).map(c => ({ name: c.name, code: c.code, on: c.on })),
+    }));
+    send();
+  }
+
+  function render() {
+    const ul = $('emuCheatList');
+    ul.textContent = '';
+    for (const c of list) {
+      const li = document.createElement('li');
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = c.on;
+      box.addEventListener('change', () => {
+        c.on = box.checked;
+        save();
+        box.blur();
+      });
+      const span = document.createElement('span');
+      span.textContent = c.name;
+      label.append(box, span);
+      li.append(label);
+      if (!c.builtIn) {
+        const remove = document.createElement('button');
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          list = list.filter(x => x !== c);
+          save();
+          render();
+        });
+        li.append(remove);
+      }
+      ul.append(li);
+    }
+  }
+
+  $('emuCheatForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const code = $('emuCheatCode').value.split(/\n+/).map(l => l.trim().toUpperCase()).filter(Boolean);
+    if (!code.length) return;
+    list.push({ name: $('emuCheatName').value.trim() || 'My cheat', code, on: true, builtIn: false });
+    $('emuCheatName').value = '';
+    $('emuCheatCode').value = '';
+    save();
+    render();
+  });
+
+  return {
+    async open(g) {
+      game = g;
+      list = [];
+      render();
+      await ready;
+      if (game !== g) return;
+      const entry = entryFor(g);
+      let saved = {};
+      try { saved = JSON.parse(load(key()) || '{}'); } catch (e) {}
+      if (entry) {
+        for (const c of entry.cheats) {
+          list.push({ name: c.name, code: [...(entry.master || []), ...c.code], on: (saved.on || []).includes(c.name), builtIn: true });
+        }
+      }
+      for (const c of saved.custom || []) {
+        if (c && Array.isArray(c.code)) list.push({ name: c.name, code: c.code, on: !!c.on, builtIn: false });
+      }
+      $('emuCheatSource').hidden = !(entry && entry.source);
+      if (entry && entry.source) $('emuCheatSource').textContent = entry.source;
+      render();
+      send();
     },
   };
 })();

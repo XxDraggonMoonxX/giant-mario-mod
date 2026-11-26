@@ -1,0 +1,14 @@
+{
+  "games": [
+    {
+      "names": ["Sonic Advance"],
+      "system": "gba",
+      "source": "Codes found and tested on Sonic Advance (USA).",
+      "cheats": [
+        { "name": "Rings stay at 99 (extra lives keep coming)", "code": ["83004FEC 0063"] },
+        { "name": "Lives stay at 9", "code": ["33005024 000A"] },
+        { "name": "Timer stays at 0:00 (no time over)", "code": ["83004FE4 0000", "83005034 0000"] }
+      ]
+    }
+  ]
+}
