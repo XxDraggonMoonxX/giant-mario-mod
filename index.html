@@ -142,7 +142,7 @@
     color: var(--muted);
   }
   .notice strong { color: var(--text); }
-  .keys {
+  .keys, .emu-keys {
     margin-top: 12px;
     color: var(--muted);
     font-size: 13px;
@@ -306,7 +306,7 @@
   }
   @media (pointer: coarse) {
     .pad { display: grid; }
-    .keys { display: none; }
+    .keys, .emu-keys { display: none; }
   }
   .play.emu-mode .pad, .play.emu-mode .keys { display: none; }
   @media (max-width: 370px) {
@@ -356,6 +356,7 @@
         <span><kbd>Enter</kbd> start</span>
         <span><kbd>Shift</kbd> select</span>
       </div>
+      <div class="emu-keys" id="emuKeys" hidden></div>
       <div class="pad" id="pad">
         <div class="dpad">
           <div data-btn="UP LEFT"></div>
@@ -492,7 +493,7 @@ const OLD_ROM_KEY = 'giant-mario-mod-rom';
 const IN_ARTIFACT = !!(window.claude && window.claude.use);
 
 const SYSTEMS = {
-  nes: { label: 'NES', family: 'nintendo', ext: ['nes'] },
+  nes: { label: 'NES', family: 'nintendo', core: 'nes', ext: ['nes'] },
   snes: { label: 'SNES', family: 'nintendo', core: 'snes', ext: ['sfc', 'smc'] },
   gb: { label: 'Game Boy', family: 'handheld', core: 'gb', ext: ['gb', 'gbc'] },
   gba: { label: 'Game Boy Advance', family: 'handheld', core: 'gba', ext: ['gba'] },
@@ -721,7 +722,7 @@ async function renderLibrary() {
     title.textContent = displayName(game);
     const info = document.createElement('p');
     const modInfo = game.mod ? (hasNormalSize(game) ? ' · mods · normal + giant size' : ' · mods · giant size only') : '';
-    info.textContent = formatSize(game.size) + modInfo + (IN_ARTIFACT && sys.core ? ' · needs the PC or hosted copy' : '');
+    info.textContent = formatSize(game.size) + modInfo + (IN_ARTIFACT && game.system !== 'nes' ? ' · needs the PC or hosted copy' : '');
     const actions = document.createElement('div');
     actions.className = 'card-actions';
     const play = document.createElement('button');
@@ -778,7 +779,7 @@ function openGame(game) {
   $('gameBadge').textContent = sys.label;
   setStatus('status', '');
 
-  const nes = game.system === 'nes';
+  const nes = usesJsnes(game);
   $('playView').classList.toggle('emu-mode', !nes);
   $('screenBox').hidden = !nes;
   $('emuFrame').hidden = nes || IN_ARTIFACT;
@@ -787,6 +788,8 @@ function openGame(game) {
   $('modPanel').hidden = !(nes && game.mod);
   $('cheatPanel').hidden = !nes;
   $('emuCheatNote').hidden = nes || IN_ARTIFACT;
+  $('emuKeys').hidden = nes || IN_ARTIFACT;
+  if (!nes) renderEmuKeys(game.system);
   if (nes) cheats.open(game);
 
   const bytes = new Uint8Array(game.data);
@@ -808,6 +811,38 @@ function openGame(game) {
     emu.start(game);
   }
   window.scrollTo({ top: 0 });
+}
+
+function usesJsnes(game) {
+  return game.system === 'nes' && (game.mod || IN_ARTIFACT);
+}
+
+const EMU_KEYS = {
+  nes: [['Z / J', 'B'], ['X / Space / K', 'A']],
+  snes: [['Z / J', 'B'], ['X / Space / K', 'A'], ['C', 'Y'], ['V', 'X'], ['Q / E', 'L / R']],
+  gb: [['Z / J', 'B'], ['X / Space / K', 'A']],
+  gba: [['Z / J', 'B'], ['X / Space / K', 'A'], ['Q / E', 'L / R']],
+  genesis: [['Z / J', 'B'], ['X / Space / K', 'C'], ['C', 'A']],
+  sms: [['Z / J', '1'], ['X / Space / K', '2']],
+  gg: [['Z / J', '1'], ['X / Space / K', '2']],
+  n64: [['Z / J', 'B'], ['X / Space / K', 'A'], ['Q / E', 'L / R'], ['C', 'Z trigger']],
+  nds: [['Z / J', 'B'], ['X / Space / K', 'A'], ['C', 'Y'], ['V', 'X'], ['Q / E', 'L / R']],
+};
+
+function renderEmuKeys(system) {
+  const box = $('emuKeys');
+  box.textContent = '';
+  const rows = [['W A S D / arrows', 'move'], ...(EMU_KEYS[system] || EMU_KEYS.snes), ['Enter', 'Start'], ['Shift', 'Select']];
+  for (const [keys, action] of rows) {
+    const span = document.createElement('span');
+    const kbd = document.createElement('kbd');
+    kbd.textContent = keys;
+    span.append(kbd, ' ' + action);
+    box.append(span);
+  }
+  const pad = document.createElement('span');
+  pad.textContent = 'Gamepads work too. On phones the emulator shows its own touch buttons.';
+  box.append(pad);
 }
 
 function startNes() {
@@ -1259,6 +1294,25 @@ const emu = (() => {
     frame.contentWindow.postMessage({ type: 'emu-load', core: SYSTEMS[pending.system].core, name: pending.file, data: copy }, '*', [copy]);
   });
 
+  const FORWARD = new Set([
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
+    'KeyX', 'Space', 'KeyK', 'KeyZ', 'KeyJ', 'KeyC', 'KeyV', 'KeyQ', 'KeyE', 'Enter', 'ShiftLeft', 'ShiftRight',
+  ]);
+
+  function forward(e, down) {
+    if (!pending || frame.hidden || !frame.contentWindow || !FORWARD.has(e.code)) return;
+    if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) return;
+    e.preventDefault();
+    if (down && e.repeat) return;
+    frame.contentWindow.postMessage({ type: 'emu-key', code: e.code, down }, '*');
+  }
+
+  document.addEventListener('keydown', e => forward(e, true));
+  document.addEventListener('keyup', e => forward(e, false));
+  window.addEventListener('blur', () => {
+    if (pending && frame.contentWindow) frame.contentWindow.postMessage({ type: 'emu-release' }, '*');
+  });
+
   return {
     start(game) {
       pending = game;
@@ -1322,7 +1376,7 @@ document.querySelectorAll('#modPanel select, #modPanel input').forEach(el => {
 
 $('restart').addEventListener('click', () => {
   if (!current) return;
-  current.system === 'nes' ? startNes() : emu.start(current);
+  usesJsnes(current) ? startNes() : emu.start(current);
   $('restart').blur();
 });
 

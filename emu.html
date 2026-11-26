@@ -15,9 +15,93 @@
 <script>
 const DATA_PATH = 'https://cdn.emulatorjs.org/stable/data/';
 
+const BUTTON = { B: 0, Y: 1, SELECT: 2, START: 3, UP: 4, DOWN: 5, LEFT: 6, RIGHT: 7, A: 8, X: 9, L: 10, R: 11 };
+
+const KEYS = {
+  ArrowUp: 'UP', KeyW: 'UP',
+  ArrowDown: 'DOWN', KeyS: 'DOWN',
+  ArrowLeft: 'LEFT', KeyA: 'LEFT',
+  ArrowRight: 'RIGHT', KeyD: 'RIGHT',
+  KeyX: 'A', Space: 'A', KeyK: 'A',
+  KeyZ: 'B', KeyJ: 'B',
+  KeyC: 'Y',
+  KeyV: 'X',
+  KeyQ: 'L',
+  KeyE: 'R',
+  Enter: 'START',
+  ShiftLeft: 'SELECT', ShiftRight: 'SELECT',
+};
+
+const BUILT_IN = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyX', 'KeyZ', 'KeyC', 'KeyV', 'KeyQ', 'KeyE', 'Enter', 'ShiftLeft', 'ShiftRight']);
+
+window.EJS_defaultControls = {
+  0: {
+    0: { value: 'z', value2: 'BUTTON_2' },
+    1: { value: 'c', value2: 'BUTTON_4' },
+    2: { value: 'shift', value2: 'SELECT' },
+    3: { value: 'enter', value2: 'START' },
+    4: { value: 'up arrow', value2: 'DPAD_UP' },
+    5: { value: 'down arrow', value2: 'DPAD_DOWN' },
+    6: { value: 'left arrow', value2: 'DPAD_LEFT' },
+    7: { value: 'right arrow', value2: 'DPAD_RIGHT' },
+    8: { value: 'x', value2: 'BUTTON_1' },
+    9: { value: 'v', value2: 'BUTTON_3' },
+    10: { value: 'q', value2: 'LEFT_TOP_SHOULDER' },
+    11: { value: 'e', value2: 'RIGHT_TOP_SHOULDER' },
+    24: { value: '1' },
+    25: { value: '2' },
+    26: { value: '3' },
+    27: {},
+    28: {},
+    29: {},
+  },
+  1: {},
+  2: {},
+  3: {},
+};
+
+const held = {};
+
+function press(code, down) {
+  const name = KEYS[code];
+  const emulator = window.EJS_emulator;
+  if (!name || !emulator || !emulator.gameManager) return false;
+  const source = code;
+  held[name] = held[name] || new Set();
+  down ? held[name].add(source) : held[name].delete(source);
+  emulator.gameManager.simulateInput(0, BUTTON[name], held[name].size ? 1 : 0);
+  return true;
+}
+
+function releaseAll() {
+  for (const name in held) {
+    if (!held[name].size) continue;
+    held[name].clear();
+    if (window.EJS_emulator && window.EJS_emulator.gameManager) window.EJS_emulator.gameManager.simulateInput(0, BUTTON[name], 0);
+  }
+}
+
+function onKey(e, down) {
+  if (BUILT_IN.has(e.code) || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (press(e.code, down)) e.preventDefault();
+}
+
+window.addEventListener('keydown', e => onKey(e, true));
+window.addEventListener('keyup', e => onKey(e, false));
+window.addEventListener('blur', releaseAll);
+
 window.addEventListener('message', e => {
   const msg = e.data;
-  if (!msg || msg.type !== 'emu-load' || window.EJS_core) return;
+  if (!msg) return;
+  if (msg.type === 'emu-key') {
+    press(msg.code, msg.down);
+    return;
+  }
+  if (msg.type === 'emu-release') {
+    releaseAll();
+    return;
+  }
+  if (msg.type !== 'emu-load' || window.EJS_core) return;
   window.EJS_player = '#game';
   window.EJS_core = msg.core;
   window.EJS_gameName = msg.name.replace(/\.[^.]+$/, '');
@@ -25,6 +109,7 @@ window.addEventListener('message', e => {
   window.EJS_pathtodata = DATA_PATH;
   window.EJS_color = '#ffcc33';
   window.EJS_backgroundColor = '#000000';
+  window.EJS_onGameStart = () => parent.postMessage({ type: 'emu-started' }, '*');
   loadEmulator(3);
 });
 
