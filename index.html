@@ -392,7 +392,16 @@
 
       <div id="modPanel" hidden>
         <hr>
-        <p class="note">Changes apply while you play. Timer, lives and music update instantly.</p>
+        <p class="note">Changes apply while you play. Timer, lives and music update instantly. Changing size restarts the game.</p>
+
+        <div class="row">
+          <label for="size">Mario size</label>
+          <select id="size">
+            <option value="normal">Normal (x1)</option>
+            <option value="giant">Giant (x2)</option>
+          </select>
+          <p class="note" id="sizeNote" hidden>Normal size needs the Super Mario Bros. (World) ROM. Add it to your library to switch sizes.</p>
+        </div>
 
         <div class="row">
           <label for="timer">Timer <output id="timerOut"></output></label>
@@ -476,6 +485,7 @@
 const M = GiantMarioMods;
 const $ = id => document.getElementById(id);
 const basePatch = Uint8Array.from(atob(BASE_PATCH), c => c.charCodeAt(0));
+const invPatch = Uint8Array.from(atob(INV_PATCH), c => c.charCodeAt(0));
 
 const SETTINGS_KEY = 'giant-mario-mod-settings';
 const OLD_ROM_KEY = 'giant-mario-mod-rom';
@@ -494,6 +504,8 @@ const SYSTEMS = {
 };
 
 let base = null;
+let bases = null;
+let sourceRom = null;
 let opts = { ...M.DEFAULTS };
 let saver = null;
 let current = null;
@@ -535,7 +547,12 @@ function isGiantMario(bytes) {
 }
 
 function displayName(game) {
-  return game.mod && !/giant mario/i.test(game.name) ? game.name + ' (Giant Mario)' : game.name;
+  return game.name;
+}
+
+function pickBase() {
+  if (!bases) return null;
+  return opts.size === 'normal' && bases.normal ? bases.normal : bases.giant;
 }
 
 function cleanName(name) {
@@ -730,6 +747,8 @@ function showLibrary() {
   emu.stop();
   current = null;
   base = null;
+  bases = null;
+  sourceRom = null;
   $('playView').hidden = true;
   $('libraryView').hidden = false;
   $('backToLibrary').hidden = true;
@@ -761,9 +780,19 @@ function openGame(game) {
 
   const bytes = new Uint8Array(game.data);
   if (nes) {
-    base = game.mod ? M.prepareBase(bytes, basePatch) : null;
+    bases = null;
+    if (game.mod) {
+      try { bases = M.prepareBases(bytes, basePatch, invPatch); } catch (e) {}
+    }
+    sourceRom = bases ? bytes : null;
+    base = pickBase();
+    if (bases) {
+      $('size').querySelector('[value=normal]').disabled = !bases.normal;
+      $('sizeNote').hidden = !!bases.normal;
+      $('size').value = base === bases.normal ? 'normal' : 'giant';
+      setStatus('status', bases.normal ? 'Normal and giant sizes are both available.' : 'Giant Mario ROM: giant size only.');
+    }
     startNes();
-    if (game.mod) setStatus('status', bytes.length === M.ORIGINAL_SIZE ? 'Original ROM: Giant Mario applied.' : 'Giant Mario ROM loaded.');
   } else if (!IN_ARTIFACT) {
     emu.start(game);
   }
@@ -776,6 +805,7 @@ function startNes() {
 }
 
 function renderOptions() {
+  $('size').value = opts.size;
   $('timer').value = String(opts.timer);
   $('lives').value = opts.lives;
   $('jump').value = opts.jump;
@@ -817,10 +847,22 @@ function readOptions() {
     starForever: $('starForever').checked,
     bricks: $('bricks').checked,
     ramBricks: $('ramBricks').checked,
+    size: $('size').value,
   };
   renderLabels();
   store(SETTINGS_KEY, JSON.stringify(opts));
-  applyLive(prev);
+  applySize(prev);
+}
+
+function applySize(prev) {
+  if (!bases) return;
+  const next = pickBase();
+  if (next !== base) {
+    base = next;
+    startNes();
+  } else {
+    applyLive(prev);
+  }
 }
 
 const CRC_TABLE = (() => {
@@ -1273,15 +1315,16 @@ $('restart').addEventListener('click', () => {
   $('restart').blur();
 });
 
-$('downloadNes').addEventListener('click', () => base && download(M.buildRom(base, opts), 'Giant Mario Mod.nes'));
-$('downloadIps').addEventListener('click', () => base && download(M.makeIps(base, M.buildRom(base, opts)), 'Giant Mario Mod.ips'));
+const modFileName = ext => (base && bases && base === bases.normal ? 'Mario Mod' : 'Giant Mario Mod') + ext;
+$('downloadNes').addEventListener('click', () => base && download(M.buildRom(base, opts), modFileName('.nes')));
+$('downloadIps').addEventListener('click', () => base && download(M.makeIps(sourceRom, M.buildRom(base, opts)), modFileName('.ips')));
 
 $('reset').addEventListener('click', () => {
   const prev = opts;
   opts = { ...M.DEFAULTS };
   store(SETTINGS_KEY, JSON.stringify(opts));
   renderOptions();
-  applyLive(prev);
+  applySize(prev);
   $('reset').blur();
 });
 

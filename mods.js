@@ -21,11 +21,39 @@ const DEFAULTS = {
   bricks: true,
   ramBricks: false,
   music: 'star',
+  size: 'giant',
+};
+
+const LAYOUTS = {
+  giant: {
+    length: GIANT_SIZE,
+    timer: 0x10d6,
+    signature: [
+      [0x0004, '02 04 41'],
+      [0x10d6, '04 03 02'],
+      [0x5cdb, '20 8f df b0 1c ac 4e 07 f0 1f ac 84 07 d0 1a 20 ed bc'],
+    ],
+    headSmash: [
+      [0x5cdb, '4c ce dc'],
+      [0x5cde, 'c9 24 90 08 c9 27 90 16 c9 c5 f0 12 20 58 83'],
+    ],
+  },
+  normal: {
+    length: ORIGINAL_SIZE,
+    timer: 0x113e,
+    signature: [
+      [0x0004, '02 01 01'],
+      [0x113e, '04 03 02'],
+      [0x5ce5, '20 8f df b0 10 ac 4e 07 f0 13 ac 84 07 d0 0e 20 ed bc'],
+    ],
+    headSmash: [
+      [0x5ce5, '4c d8 dc'],
+      [0x5ce8, 'c9 24 90 08 c9 27 90 0a c9 c5 f0 06 20 58 83'],
+    ],
+  },
 };
 
 const SIGNATURE = [
-  [0x0004, '02 04 41'],
-  [0x10d6, '04 03 02'],
   [0x107a, '02'],
   [0x10f7, '02 01 04 08 10 20'],
   [0x3442, 'fc fc fc fb fb'],
@@ -41,7 +69,6 @@ const SIGNATURE = [
   [0x0350, '01 80 02 81 41 80 01 42 c2 02 80 41 c1 41 c1 01 c1 01 02'],
   [0x0274, '20 6b 83'],
   [0x5e0f, '20 4b df'],
-  [0x5cdb, '20 8f df b0 1c ac 4e 07 f0 1f ac 84 07 d0 1a 20 ed bc'],
 ];
 
 const RAM_BRICKS = [
@@ -50,8 +77,6 @@ const RAM_BRICKS = [
             b5 26 c9 12 d0 10 bd e6 03 85 06 a9 05 85 07 bc e4 03 a9 00 91 06 60 4c 4b df`],
   [0x0274, '38 ea ea'],
   [0x5e0f, '4c 40 83'],
-  [0x5cdb, '4c d1 dc'],
-  [0x5ce1, 'c9 26 f0 17 c9 c5 f0 13 20 58 83 ea'],
 ];
 
 const STAR_READS = [
@@ -112,26 +137,45 @@ function makeIps(from, to) {
   return Uint8Array.from(parts);
 }
 
+function layoutOf(rom) {
+  return rom.length === GIANT_SIZE ? LAYOUTS.giant : LAYOUTS.normal;
+}
+
+function matches(rom, list) {
+  return list.every(([offset, text]) => hexBytes(text).every((b, k) => rom[offset + k] === b));
+}
+
+function isModBase(rom) {
+  const layout = layoutOf(rom);
+  return rom.length === layout.length && matches(rom, SIGNATURE) && matches(rom, layout.signature);
+}
+
+function prepareBases(rom, basePatch, invPatch) {
+  if (rom.length !== ORIGINAL_SIZE && rom.length !== GIANT_SIZE) {
+    throw new Error(`Unexpected ROM size ${rom.length} bytes. Load the Super Mario Bros. (World) ROM (${ORIGINAL_SIZE} bytes, with header) or the Giant Mario v1.2 + Invincible ROM (${GIANT_SIZE} bytes).`);
+  }
+  const giant = rom.length === ORIGINAL_SIZE ? applyIps(rom, basePatch) : rom;
+  if (!isModBase(giant)) {
+    throw new Error('This ROM does not match Super Mario Bros. (World) or Giant Mario v1.2 + Invincible Mario.');
+  }
+  let normal = null;
+  if (rom.length === ORIGINAL_SIZE && invPatch) {
+    const candidate = applyIps(rom, invPatch);
+    if (isModBase(candidate)) normal = candidate;
+  }
+  return { giant, normal };
+}
+
 function prepareBase(rom, basePatch) {
-  let base = rom;
-  if (rom.length === ORIGINAL_SIZE) base = applyIps(rom, basePatch);
-  if (base.length !== GIANT_SIZE) {
-    throw new Error(`Unexpected ROM size ${rom.length} bytes. Load the original Super Mario Bros. ROM (${ORIGINAL_SIZE} bytes, with header) or the Giant Mario v1.2 + Invincible ROM (${GIANT_SIZE} bytes).`);
-  }
-  for (const [offset, text] of SIGNATURE) {
-    const want = hexBytes(text);
-    if (want.some((b, k) => base[offset + k] !== b)) {
-      throw new Error('This ROM does not match Giant Mario v1.2 + Invincible Mario. Use the original Super Mario Bros. (World) ROM or the ROM you patched with both.');
-    }
-  }
-  return base;
+  return prepareBases(rom, basePatch).giant;
 }
 
 function buildRom(base, opts) {
   const o = { ...DEFAULTS, ...opts };
+  const layout = layoutOf(base);
   const rom = Uint8Array.from(base);
 
-  if (o.timer) write(rom, 0x10d6, [o.timer, o.timer, o.timer]);
+  if (o.timer) write(rom, layout.timer, [o.timer, o.timer, o.timer]);
 
   write(rom, 0x107a, [Math.max(1, Math.min(9, o.lives)) - 1]);
 
@@ -148,7 +192,7 @@ function buildRom(base, opts) {
     write(rom, 0x3d24, hexBytes('a0 00 ea ea ea'));
   }
 
-  if (o.ramBricks) for (const [offset, text] of RAM_BRICKS) write(rom, offset, hexBytes(text));
+  if (o.ramBricks) for (const [offset, text] of [...RAM_BRICKS, ...layout.headSmash]) write(rom, offset, hexBytes(text));
 
   const music = o.music === 'original' ? MUSIC.original : new Array(6).fill(MUSIC[o.music] ?? MUSIC.star);
   write(rom, 0x10f7, music);
@@ -161,5 +205,5 @@ function musicValue(name, areaType) {
   return MUSIC[name] ?? MUSIC.star;
 }
 
-const GiantMarioMods = { DEFAULTS, ORIGINAL_SIZE, GIANT_SIZE, applyIps, makeIps, prepareBase, buildRom, musicValue };
+const GiantMarioMods = { DEFAULTS, ORIGINAL_SIZE, GIANT_SIZE, applyIps, makeIps, prepareBase, prepareBases, buildRom, musicValue };
 if (typeof module !== 'undefined') module.exports = GiantMarioMods;
