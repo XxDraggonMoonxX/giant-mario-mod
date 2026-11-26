@@ -336,7 +336,7 @@
     <div class="cards" id="cards"></div>
     <p class="note" id="noMatch" hidden>No games match that search.</p>
     <div class="empty" id="empty" hidden>No games yet. Tap <strong>+ Add games</strong> and pick ROM files from your device, like your Giant Mario ROM or your Sonic games.</div>
-    <p class="systems">Works with NES (.nes) · SNES (.sfc .smc) · Game Boy / Color (.gb .gbc) · Game Boy Advance (.gba) · Genesis / Mega Drive (.md .gen .smd .bin) · Master System (.sms) · Game Gear (.gg) · Nintendo 64 (.n64 .z64 .v64) · Nintendo DS (.nds). Unzip .zip files first.</p>
+    <p class="systems">Works with NES (.nes) · SNES (.sfc .smc) · Game Boy / Color (.gb .gbc) · Game Boy Advance (.gba) · Genesis / Mega Drive (.md .gen .smd .bin) · Master System (.sms) · Game Gear (.gg) · Nintendo 64 (.n64 .z64 .v64) · Nintendo DS (.nds). Zipped games (.zip) work too.</p>
   </section>
 
   <section id="playView" class="play" hidden>
@@ -539,7 +539,45 @@ function displayName(game) {
 }
 
 function cleanName(name) {
-  return name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim() || 'Untitled game';
+  return name
+    .replace(/\.[^.]+$/, '')
+    .replace(/\)\s+\d+$/, ')')
+    .replace(/\(E\)/g, '(Europe)')
+    .replace(/\(J\)/g, '(Japan)')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\((U|W|UE|JU|World|USA|M\d+)\)/gi, '')
+    .replace(/_+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'Untitled game';
+}
+
+async function unzipRom(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { end = i; break; }
+  }
+  if (end < 0) return null;
+  const count = view.getUint16(end + 10, true);
+  let p = view.getUint32(end + 16, true);
+  for (let k = 0; k < count; k++) {
+    if (view.getUint32(p, true) !== 0x02014b50) return null;
+    const method = view.getUint16(p + 10, true);
+    const size = view.getUint32(p + 20, true);
+    const nameLength = view.getUint16(p + 28, true);
+    const skip = nameLength + view.getUint16(p + 30, true) + view.getUint16(p + 32, true);
+    const local = view.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(p + 46, p + 46 + nameLength)).split('/').pop();
+    p += 46 + skip;
+    if (!name || !detectSystem(name, new Uint8Array(4))) continue;
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    const raw = bytes.subarray(start, start + size);
+    if (method === 0) return { name, data: raw.slice() };
+    if (method !== 8 || typeof DecompressionStream === 'undefined') return null;
+    const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return { name, data: new Uint8Array(await new Response(stream).arrayBuffer()) };
+  }
+  return null;
 }
 
 const library = (() => {
@@ -593,17 +631,32 @@ async function addFiles(files) {
   const skipped = [];
   let saved = true;
   for (const file of files) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const system = detectSystem(file.name, bytes);
+    let name = file.name;
+    let bytes = new Uint8Array(await file.arrayBuffer());
+    const sourceSize = bytes.length;
+    if (/\.zip$/i.test(name)) {
+      let inner = null;
+      try { inner = await unzipRom(bytes); } catch (e) {}
+      if (!inner) {
+        skipped.push(file.name);
+        continue;
+      }
+      name = inner.name;
+      bytes = inner.data;
+    }
+    const system = detectSystem(name, bytes);
     if (!system) {
       skipped.push(file.name);
       continue;
     }
-    const same = existing.find(g => g.file === file.name && g.size === bytes.length);
+    const same = existing.find(g => g.source === file.name && g.sourceSize === sourceSize)
+      || existing.find(g => g.file === name && g.size === bytes.length);
     const game = {
       id: same ? same.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      name: cleanName(file.name),
-      file: file.name,
+      name: cleanName(name),
+      file: name,
+      source: file.name,
+      sourceSize,
       system,
       size: bytes.length,
       mod: system === 'nes' && isGiantMario(bytes),
@@ -615,7 +668,7 @@ async function addFiles(files) {
   }
   const parts = [];
   if (added) parts.push(`Added ${added} game${added === 1 ? '' : 's'}.`);
-  if (skipped.length) parts.push(`Skipped ${skipped.join(', ')}: not a supported game file. Unzip .zip files first.`);
+  if (skipped.length) parts.push(`Skipped ${skipped.join(', ')}: no supported game file found.`);
   if (!saved) parts.push('This browser could not save games permanently, so they last until you close the page.');
   setStatus('libStatus', parts.join(' '), skipped.length > 0 && !added);
   renderLibrary();
@@ -1274,7 +1327,7 @@ async function loadFolderGames() {
   const files = [];
   for (const item of list) {
     if (!item || typeof item.file !== 'string') continue;
-    if (existing.some(g => g.file === item.file && g.size === item.size)) continue;
+    if (existing.some(g => (g.source || g.file) === item.file && (g.sourceSize || g.size) === item.size)) continue;
     try {
       const res = await fetch('games/' + encodeURIComponent(item.file));
       if (res.ok) files.push(new File([await res.arrayBuffer()], item.file));

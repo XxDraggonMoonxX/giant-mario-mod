@@ -41,6 +41,7 @@ const SIGNATURE = [
   [0x0350, '01 80 02 81 41 80 01 42 c2 02 80 41 c1 41 c1 01 c1 01 02'],
   [0x0274, '20 6b 83'],
   [0x5e0f, '20 4b df'],
+  [0x5cdb, '20 8f df b0 1c ac 4e 07 f0 1f ac 84 07 d0 1a 20 ed bc'],
 ];
 
 const RAM_BRICKS = [
@@ -49,6 +50,8 @@ const RAM_BRICKS = [
             b5 26 c9 12 d0 10 bd e6 03 85 06 a9 05 85 07 bc e4 03 a9 00 91 06 60 4c 4b df`],
   [0x0274, '38 ea ea'],
   [0x5e0f, '4c 40 83'],
+  [0x5cdb, '4c d1 dc'],
+  [0x5ce1, 'c9 26 f0 17 c9 c5 f0 13 20 58 83 ea'],
 ];
 
 const STAR_READS = [
