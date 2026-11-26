@@ -347,7 +347,7 @@
       </div>
       <iframe id="emuFrame" class="emu" title="Game" allow="autoplay; fullscreen; gamepad" hidden></iframe>
       <div class="notice" id="emuNotice" hidden>
-        <strong>This game needs the full site.</strong> NES games play right here, but SNES, Game Boy, GBA, Genesis, Master System, Game Gear, N64 and DS games need the copy on your PC (open <code>index.html</code>) or a copy hosted on your own website.
+        <strong>This game can't run on claude.ai.</strong> Your game file is fine. claude.ai pages only allow the built-in NES emulator, so SNES, Game Boy, GBA, Genesis, Master System, Game Gear, N64 and DS games need the copy on your PC (open <code>index.html</code> with Live Server) or a copy hosted on your own website, like GitHub Pages.
       </div>
       <div class="keys">
         <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> move</span>
@@ -546,6 +546,16 @@ function isGiantMario(bytes) {
   try { M.prepareBase(bytes, basePatch); return true; } catch (e) { return false; }
 }
 
+const sizeCache = new Map();
+function hasNormalSize(game) {
+  if (!sizeCache.has(game.id)) {
+    let normal = false;
+    try { normal = !!M.prepareBases(new Uint8Array(game.data), basePatch, invPatch).normal; } catch (e) {}
+    sizeCache.set(game.id, normal);
+  }
+  return sizeCache.get(game.id);
+}
+
 function displayName(game) {
   return game.name;
 }
@@ -710,7 +720,8 @@ async function renderLibrary() {
     const title = document.createElement('h3');
     title.textContent = displayName(game);
     const info = document.createElement('p');
-    info.textContent = formatSize(game.size) + (game.mod ? ' · mod settings' : '') + (IN_ARTIFACT && sys.core ? ' · needs the PC or hosted copy' : '');
+    const modInfo = game.mod ? (hasNormalSize(game) ? ' · mods · normal + giant size' : ' · mods · giant size only') : '';
+    info.textContent = formatSize(game.size) + modInfo + (IN_ARTIFACT && sys.core ? ' · needs the PC or hosted copy' : '');
     const actions = document.createElement('div');
     actions.className = 'card-actions';
     const play = document.createElement('button');
@@ -1341,7 +1352,7 @@ renderOptions();
       const bytes = Uint8Array.from(atob(old), c => c.charCodeAt(0));
       const ok = await library.put({
         id: 'giant-mario',
-        name: 'Super Mario Bros.',
+        name: 'Super Mario Bros. (Giant Mario)',
         file: 'Giant Mario.nes',
         system: 'nes',
         size: bytes.length,
@@ -1351,6 +1362,12 @@ renderOptions();
       });
       if (ok) localStorage.removeItem(OLD_ROM_KEY);
     } catch (e) {}
+  }
+  for (const g of await library.all()) {
+    if (g.id === 'giant-mario' && g.name === 'Super Mario Bros.') {
+      g.name = 'Super Mario Bros. (Giant Mario)';
+      await library.put(g);
+    }
   }
   renderLibrary();
   await loadFolderGames();
