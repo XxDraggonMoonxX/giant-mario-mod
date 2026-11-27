@@ -300,6 +300,13 @@
   .cheats li label { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; min-width: 0; }
   .cheats li input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
   .cheats li label .cheat-choice { width: auto; margin-left: auto; padding: 4px 6px; font-size: 13px; }
+  .cheats li.rom-mod { display: grid; gap: 6px; padding: 8px 10px; }
+  .rom-mod-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
+  .rom-mod-head .cheat-choice { width: auto; padding: 4px 6px; font-size: 13px; }
+  .rom-slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+  .rom-slider output { color: var(--accent); font-weight: 600; }
+  .rom-slider input { grid-column: 1 / -1; }
+  .rom-mod .note { margin: 0; }
   .emu-cheat-form { display: grid; gap: 8px; margin-top: 12px; }
   .emu-cheat-form input, .emu-cheat-form textarea {
     width: 100%;
@@ -1314,13 +1321,56 @@ const cheats = (() => {
 const emu = (() => {
   const frame = $('emuFrame');
   let pending = null;
+  let pendingOpts = {};
+  let stateWaiter = null;
 
-  window.addEventListener('message', e => {
-    if (e.source !== frame.contentWindow || !e.data || e.data.type !== 'emu-ready' || !pending) return;
-    const copy = pending.data.slice(0);
-    frame.contentWindow.postMessage({ type: 'emu-load', core: SYSTEMS[pending.system].core, name: pending.file, data: copy }, '*', [copy]);
+  window.addEventListener('message', async e => {
+    if (e.source !== frame.contentWindow || !e.data) return;
+    if (e.data.type === 'emu-state') {
+      if (stateWaiter) stateWaiter(e.data.data || null);
+      stateWaiter = null;
+      return;
+    }
+    if (e.data.type !== 'emu-ready' || !pending) return;
+    const game = pending;
+    const opts = pendingOpts;
+    const data = await emuCheats.romFor(game);
+    if (pending !== game || !frame.contentWindow) return;
+    const transfer = [data];
+    if (opts.state) transfer.push(opts.state);
+    frame.contentWindow.postMessage({
+      type: 'emu-load', core: SYSTEMS[game.system].core, name: game.file, data,
+      autostart: !!opts.autostart, state: opts.state || null,
+    }, '*', transfer);
     if (lastCheats) frame.contentWindow.postMessage(lastCheats, '*');
   });
+
+  function start(game, opts = {}) {
+    pending = game;
+    pendingOpts = opts;
+    frame.src = 'emu.html?' + Date.now();
+  }
+
+  function getState() {
+    return new Promise(resolve => {
+      if (!pending || !frame.contentWindow) return resolve(null);
+      stateWaiter = resolve;
+      frame.contentWindow.postMessage({ type: 'emu-getstate' }, '*');
+      setTimeout(() => {
+        if (stateWaiter === resolve) {
+          stateWaiter = null;
+          resolve(null);
+        }
+      }, 3000);
+    });
+  }
+
+  async function reload() {
+    if (!pending) return;
+    const game = pending;
+    const state = await getState();
+    if (pending === game) start(game, { autostart: true, state });
+  }
 
   let lastCheats = null;
   function send(msg) {
@@ -1348,10 +1398,8 @@ const emu = (() => {
   });
 
   return {
-    start(game) {
-      pending = game;
-      frame.src = 'emu.html?' + Date.now();
-    },
+    start,
+    reload,
     stop() {
       pending = null;
       lastCheats = null;
@@ -1365,6 +1413,8 @@ const emuCheats = (() => {
   let db = null;
   let game = null;
   let list = [];
+  let mods = [];
+  let opened = Promise.resolve();
   const ready = fetch('cheats.json', { cache: 'no-store' })
     .then(res => (res.ok ? res.json() : null))
     .catch(() => null)
@@ -1392,17 +1442,112 @@ const emuCheats = (() => {
   function save() {
     const picks = {};
     list.filter(c => c.choices).forEach(c => { picks[c.name] = c.pick; });
+    const rom = {};
+    mods.forEach(m => { rom[m.name] = m.choices ? m.pick : { ...m.values }; });
     store(key(), JSON.stringify({
       on: list.filter(c => c.builtIn && !c.choices && c.on).map(c => c.name),
       picks,
+      rom,
       custom: list.filter(c => !c.builtIn).map(c => ({ name: c.name, code: c.code, on: c.on })),
     }));
     send();
   }
 
+  const hexList = text => text.trim().split(/\s+/).map(h => parseInt(h, 16));
+
+  function modBytes(m) {
+    if (m.choices) {
+      const choice = m.choices[m.pick];
+      return choice && choice.patch ? choice.patch.map(([offset, text]) => [offset, hexList(text)]) : [];
+    }
+    const values = { ...m.values };
+    for (const [id, [from, factor, max]] of Object.entries(m.derived || {})) values[id] = Math.min(max, Math.round(values[from] * factor));
+    return m.patch.map(([offset, text]) => [offset, text.trim().split(/\s+/).map(t => {
+      const token = t.match(/^\{(\w+)\}$/);
+      return token ? values[token[1]] & 0xff : parseInt(t, 16);
+    })]);
+  }
+
+  function applyMods(bytes) {
+    for (const m of mods) {
+      const original = (m.check || []).every(([offset, text]) => hexList(text).every((b, i) => bytes[offset + i] === b));
+      if (!original) continue;
+      for (const [offset, data] of modBytes(m)) bytes.set(data, offset);
+    }
+  }
+
+  function sliderText(s, v) {
+    return s.unit ? (v / s.unit).toFixed(1) + 'x' : String(v);
+  }
+
+  function renderMods(ul) {
+    for (const m of mods) {
+      const li = document.createElement('li');
+      li.className = 'rom-mod';
+      const head = document.createElement('div');
+      head.className = 'rom-mod-head';
+      const title = document.createElement('span');
+      title.textContent = m.name;
+      head.append(title);
+      li.append(head);
+      if (m.choices) {
+        const select = document.createElement('select');
+        select.className = 'cheat-choice';
+        m.choices.forEach((choice, i) => {
+          const option = document.createElement('option');
+          option.value = String(i);
+          option.textContent = choice.label;
+          select.append(option);
+        });
+        select.value = String(m.pick);
+        select.addEventListener('change', () => {
+          m.pick = +select.value;
+          save();
+          select.blur();
+          emu.reload();
+        });
+        head.append(select);
+      } else {
+        for (const s of m.sliders) {
+          const row = document.createElement('label');
+          row.className = 'rom-slider';
+          const name = document.createElement('span');
+          name.textContent = s.label;
+          const out = document.createElement('output');
+          out.textContent = sliderText(s, m.values[s.id]);
+          const input = document.createElement('input');
+          input.type = 'range';
+          input.min = s.min;
+          input.max = s.max;
+          input.step = s.step || 1;
+          input.value = m.values[s.id];
+          input.addEventListener('input', () => {
+            m.values[s.id] = +input.value;
+            out.textContent = sliderText(s, m.values[s.id]);
+          });
+          input.addEventListener('change', () => {
+            save();
+            input.blur();
+            emu.reload();
+          });
+          row.append(name, out, input);
+          li.append(row);
+        }
+      }
+      if (m.note) {
+        const note = document.createElement('p');
+        note.className = 'note';
+        note.textContent = m.note;
+        li.append(note);
+      }
+      ul.append(li);
+    }
+  }
+
   function render() {
     const ul = $('emuCheatList');
     ul.textContent = '';
+    renderMods(ul);
     for (const c of list) {
       const li = document.createElement('li');
       if (c.choices) {
@@ -1467,15 +1612,39 @@ const emuCheats = (() => {
   });
 
   return {
-    async open(g) {
+    async romFor(g) {
+      await opened;
+      const bytes = new Uint8Array(g.data.slice(0));
+      if (g === game) applyMods(bytes);
+      return bytes.buffer;
+    },
+    open(g) {
+      opened = this.load(g);
+      return opened;
+    },
+    async load(g) {
       game = g;
       list = [];
+      mods = [];
       render();
       await ready;
       if (game !== g) return;
       const entry = entryFor(g);
       let saved = {};
       try { saved = JSON.parse(load(key()) || '{}'); } catch (e) {}
+      for (const m of (entry && entry.romMods) || []) {
+        const prev = saved.rom ? saved.rom[m.name] : undefined;
+        if (m.choices) {
+          mods.push({ ...m, pick: Number.isInteger(prev) && prev < m.choices.length ? prev : 0 });
+        } else {
+          const values = {};
+          for (const s of m.sliders) {
+            const v = prev && Number.isFinite(prev[s.id]) ? prev[s.id] : s.default;
+            values[s.id] = Math.max(s.min, Math.min(s.max, v));
+          }
+          mods.push({ ...m, values });
+        }
+      }
       if (entry) {
         const master = entry.master || [];
         for (const c of entry.cheats) {

@@ -8,113 +8,6 @@
       "source": "Codes found and tested on Sonic Advance (USA). Partner mode is the game's hidden Tails feature (Sonic Retro).",
       "cheats": [
         {
-          "name": "Partner who follows you (pick Sonic on the character screen)",
-          "choices": [
-            {
-              "label": "Tails",
-              "code": [
-                "33005050 0001",
-                "A3005088 0000",
-                "33005B09 0001"
-              ]
-            },
-            {
-              "label": "Knuckles",
-              "code": [
-                "33005050 0001",
-                "A3005088 0000",
-                "33005B09 0002"
-              ]
-            },
-            {
-              "label": "Amy",
-              "code": [
-                "33005050 0001",
-                "A3005088 0000",
-                "33005B09 0003"
-              ]
-            },
-            {
-              "label": "Sonic",
-              "code": [
-                "33005050 0001",
-                "A3005088 0000",
-                "33005B09 0000"
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Play as (use with a partner, pick Sonic on the character screen)",
-          "choices": [
-            {
-              "label": "Tails",
-              "code": [
-                "A3005088 0000",
-                "33005A79 0001"
-              ]
-            },
-            {
-              "label": "Knuckles",
-              "code": [
-                "A3005088 0000",
-                "33005A79 0002"
-              ]
-            },
-            {
-              "label": "Amy",
-              "code": [
-                "A3005088 0000",
-                "33005A79 0003"
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Speed boost (while holding left or right, also in the air)",
-          "choices": [
-            {
-              "label": "1.5x",
-              "code": [
-                "D0000020 0010",
-                "83005A2C 06C0",
-                "D0000020 0010",
-                "83005A28 06C0",
-                "D0000020 0020",
-                "83005A2C F940",
-                "D0000020 0020",
-                "83005A28 F940"
-              ]
-            },
-            {
-              "label": "2x",
-              "code": [
-                "D0000020 0010",
-                "83005A2C 0900",
-                "D0000020 0010",
-                "83005A28 0900",
-                "D0000020 0020",
-                "83005A2C F700",
-                "D0000020 0020",
-                "83005A28 F700"
-              ]
-            },
-            {
-              "label": "3x",
-              "code": [
-                "D0000020 0010",
-                "83005A2C 0D80",
-                "D0000020 0010",
-                "83005A28 0D80",
-                "D0000020 0020",
-                "83005A2C F280",
-                "D0000020 0020",
-                "83005A28 F280"
-              ]
-            }
-          ]
-        },
-        {
           "name": "Speed shoes forever",
           "code": [
             "23005A46 0004"
@@ -156,6 +49,141 @@
           "code": [
             "83004FE4 0000",
             "83005034 0000"
+          ]
+        }
+      ],
+      "romMods": [
+        {
+          "name": "Partner who follows you",
+          "note": "Works with any character you pick. Starts at the next level or after a restart.",
+          "check": [
+            [
+              249528,
+              "0c d0"
+            ],
+            [
+              249536,
+              "08 d1"
+            ],
+            [
+              249548,
+              "01 20"
+            ]
+          ],
+          "choices": [
+            {
+              "label": "Off",
+              "patch": null
+            },
+            {
+              "label": "Tails",
+              "patch": [
+                [
+                  249528,
+                  "c0 46"
+                ],
+                [
+                  249536,
+                  "c0 46"
+                ],
+                [
+                  249548,
+                  "01 20"
+                ]
+              ]
+            },
+            {
+              "label": "Knuckles",
+              "patch": [
+                [
+                  249528,
+                  "c0 46"
+                ],
+                [
+                  249536,
+                  "c0 46"
+                ],
+                [
+                  249548,
+                  "02 20"
+                ]
+              ]
+            },
+            {
+              "label": "Amy",
+              "patch": [
+                [
+                  249528,
+                  "c0 46"
+                ],
+                [
+                  249536,
+                  "c0 46"
+                ],
+                [
+                  249548,
+                  "03 20"
+                ]
+              ]
+            },
+            {
+              "label": "Sonic",
+              "patch": [
+                [
+                  249528,
+                  "c0 46"
+                ],
+                [
+                  249536,
+                  "c0 46"
+                ],
+                [
+                  249548,
+                  "00 20"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Speed shoes power",
+          "note": "Used whenever speed shoes are on, from an item box or the cheat below. Normal running is 1.0x.",
+          "check": [
+            [
+              281854,
+              "e0 6a 40 00 e0 62 20 6b 40 00 20 63 60 6b 40 00"
+            ]
+          ],
+          "patch": [
+            [
+              281854,
+              "{top} 20 00 01 e0 62 {acc} 20 20 63 {dec} 20 40 00 c0 46"
+            ]
+          ],
+          "derived": {
+            "dec": [
+              "acc",
+              6,
+              255
+            ]
+          },
+          "sliders": [
+            {
+              "id": "top",
+              "label": "Top speed",
+              "min": 72,
+              "max": 255,
+              "default": 144,
+              "unit": 72
+            },
+            {
+              "id": "acc",
+              "label": "Acceleration",
+              "min": 8,
+              "max": 96,
+              "default": 16,
+              "unit": 8
+            }
           ]
         }
       ]

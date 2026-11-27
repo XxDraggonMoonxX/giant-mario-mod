@@ -120,6 +120,15 @@ window.addEventListener('message', e => {
     applyCheats();
     return;
   }
+  if (msg.type === 'emu-getstate') {
+    let data = null;
+    try {
+      const emulator = window.EJS_emulator;
+      if (emulator && emulator.started && emulator.gameManager) data = emulator.gameManager.getState().slice().buffer;
+    } catch (err) {}
+    parent.postMessage({ type: 'emu-state', data }, '*', data ? [data] : []);
+    return;
+  }
   if (msg.type !== 'emu-load' || window.EJS_core) return;
   window.EJS_player = '#game';
   window.EJS_core = msg.core;
@@ -128,7 +137,16 @@ window.addEventListener('message', e => {
   window.EJS_pathtodata = DATA_PATH;
   window.EJS_color = '#ffcc33';
   window.EJS_backgroundColor = '#000000';
-  window.EJS_onGameStart = () => parent.postMessage({ type: 'emu-started' }, '*');
+  if (msg.autostart) window.EJS_startOnLoaded = true;
+  const state = msg.state ? new Uint8Array(msg.state) : null;
+  window.EJS_onGameStart = () => {
+    if (state) {
+      setTimeout(() => {
+        try { window.EJS_emulator.gameManager.loadState(state); } catch (err) {}
+      }, 300);
+    }
+    parent.postMessage({ type: 'emu-started' }, '*');
+  };
   loadEmulator(3);
 });
 
