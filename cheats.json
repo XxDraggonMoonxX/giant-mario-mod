@@ -5,8 +5,71 @@
         "Sonic Advance"
       ],
       "system": "gba",
-      "source": "Codes found and tested on Sonic Advance (USA).",
+      "source": "Codes found and tested on Sonic Advance (USA). Partner mode is the game's hidden Tails feature (Sonic Retro).",
       "cheats": [
+        {
+          "name": "Partner who follows you (pick Sonic on the character screen)",
+          "choices": [
+            {
+              "label": "Tails",
+              "code": [
+                "33005050 0001",
+                "A3005088 0000",
+                "33005B09 0001"
+              ]
+            },
+            {
+              "label": "Knuckles",
+              "code": [
+                "33005050 0001",
+                "A3005088 0000",
+                "33005B09 0002"
+              ]
+            },
+            {
+              "label": "Amy",
+              "code": [
+                "33005050 0001",
+                "A3005088 0000",
+                "33005B09 0003"
+              ]
+            },
+            {
+              "label": "Sonic",
+              "code": [
+                "33005050 0001",
+                "A3005088 0000",
+                "33005B09 0000"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Play as (use with a partner, pick Sonic on the character screen)",
+          "choices": [
+            {
+              "label": "Tails",
+              "code": [
+                "A3005088 0000",
+                "33005A79 0001"
+              ]
+            },
+            {
+              "label": "Knuckles",
+              "code": [
+                "A3005088 0000",
+                "33005A79 0002"
+              ]
+            },
+            {
+              "label": "Amy",
+              "code": [
+                "A3005088 0000",
+                "33005A79 0003"
+              ]
+            }
+          ]
+        },
         {
           "name": "Speed boost (while holding left or right, also in the air)",
           "choices": [
@@ -49,6 +112,25 @@
                 "83005A28 F280"
               ]
             }
+          ]
+        },
+        {
+          "name": "Speed shoes forever",
+          "code": [
+            "23005A46 0004"
+          ]
+        },
+        {
+          "name": "Invincible like a star (no sparkles)",
+          "code": [
+            "23005A46 0002",
+            "83005A3E 0258"
+          ]
+        },
+        {
+          "name": "Shield forever (invisible, comes back after every hit)",
+          "code": [
+            "23005A46 0001"
           ]
         },
         {
