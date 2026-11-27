@@ -299,6 +299,7 @@
   .cheats li button { padding: 4px 10px; font-size: 13px; }
   .cheats li label { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; min-width: 0; }
   .cheats li input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+  .cheats li label .cheat-choice { width: auto; margin-left: auto; padding: 4px 6px; font-size: 13px; }
   .emu-cheat-form { display: grid; gap: 8px; margin-top: 12px; }
   .emu-cheat-form input, .emu-cheat-form textarea {
     width: 100%;
@@ -1379,13 +1380,21 @@ const emuCheats = (() => {
     return 'emucheats:' + game.id;
   }
 
+  function activeCode(c) {
+    if (c.choices) return c.pick > 0 ? c.choices[c.pick].code : null;
+    return c.on ? c.code : null;
+  }
+
   function send() {
-    emu.send({ type: 'emu-cheats', cheats: list.filter(c => c.on).map(c => c.code.join('+')) });
+    emu.send({ type: 'emu-cheats', cheats: list.map(activeCode).filter(Boolean).map(code => code.join('+')) });
   }
 
   function save() {
+    const picks = {};
+    list.filter(c => c.choices).forEach(c => { picks[c.name] = c.pick; });
     store(key(), JSON.stringify({
-      on: list.filter(c => c.builtIn && c.on).map(c => c.name),
+      on: list.filter(c => c.builtIn && !c.choices && c.on).map(c => c.name),
+      picks,
       custom: list.filter(c => !c.builtIn).map(c => ({ name: c.name, code: c.code, on: c.on })),
     }));
     send();
@@ -1396,6 +1405,29 @@ const emuCheats = (() => {
     ul.textContent = '';
     for (const c of list) {
       const li = document.createElement('li');
+      if (c.choices) {
+        const label = document.createElement('label');
+        const span = document.createElement('span');
+        span.textContent = c.name;
+        const select = document.createElement('select');
+        select.className = 'cheat-choice';
+        c.choices.forEach((choice, i) => {
+          const option = document.createElement('option');
+          option.value = String(i);
+          option.textContent = choice.label;
+          select.append(option);
+        });
+        select.value = String(c.pick);
+        select.addEventListener('change', () => {
+          c.pick = +select.value;
+          save();
+          select.blur();
+        });
+        label.append(span, select);
+        li.append(label);
+        ul.append(li);
+        continue;
+      }
       const label = document.createElement('label');
       const box = document.createElement('input');
       box.type = 'checkbox';
@@ -1445,8 +1477,15 @@ const emuCheats = (() => {
       let saved = {};
       try { saved = JSON.parse(load(key()) || '{}'); } catch (e) {}
       if (entry) {
+        const master = entry.master || [];
         for (const c of entry.cheats) {
-          list.push({ name: c.name, code: [...(entry.master || []), ...c.code], on: (saved.on || []).includes(c.name), builtIn: true });
+          if (Array.isArray(c.choices)) {
+            const pick = saved.picks && Number.isInteger(saved.picks[c.name]) ? saved.picks[c.name] : 0;
+            const choices = [{ label: 'Off', code: null }, ...c.choices.map(ch => ({ label: ch.label, code: [...master, ...ch.code] }))];
+            list.push({ name: c.name, choices, pick: Math.min(pick, choices.length - 1), builtIn: true });
+          } else {
+            list.push({ name: c.name, code: [...master, ...c.code], on: (saved.on || []).includes(c.name), builtIn: true });
+          }
         }
       }
       for (const c of saved.custom || []) {
