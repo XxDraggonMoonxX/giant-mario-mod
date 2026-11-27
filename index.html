@@ -1460,6 +1460,7 @@ const emuCheats = (() => {
       const choice = m.choices[m.pick];
       return choice && choice.patch ? choice.patch.map(([offset, text]) => [offset, hexList(text)]) : [];
     }
+    if (m.sliders.every(s => m.values[s.id] === s.default)) return [];
     const values = { ...m.values };
     for (const [id, [from, factor, max]] of Object.entries(m.derived || {})) values[id] = Math.min(max, Math.round(values[from] * factor));
     return m.patch.map(([offset, text]) => [offset, text.trim().split(/\s+/).map(t => {

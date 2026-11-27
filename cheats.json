@@ -187,6 +187,108 @@
           ]
         }
       ]
+    },
+    {
+      "names": [
+        "Sonic Advance 2"
+      ],
+      "system": "gba",
+      "source": "Codes and patches found and tested on Sonic Advance 2 (USA).",
+      "romMods": [
+        {
+          "name": "Speed shoes power",
+          "note": "Used whenever speed shoes are on, from an item box or the cheat below. Top speed multiplies both normal running and boost mode. The original speed shoes only raise acceleration (1.0x top speed, 2.0x acceleration).",
+          "check": [
+            [
+              146192,
+              "a0 6c 40 00 a0 64 e0 6c 40 00 13 e0"
+            ],
+            [
+              146228,
+              "20 6c 80 10 20 64 a0 6c 80 10 a0 64 e0 6c 80 10 e0 64"
+            ]
+          ],
+          "patch": [
+            [
+              146192,
+              "{acc} 20 a0 64 c0 00 e0 64 {top} 21 0b e0"
+            ],
+            [
+              146228,
+              "60 6c 48 43 80 11 60 64 20 6c 48 43 80 11 20 64 c0 46"
+            ]
+          ],
+          "sliders": [
+            {
+              "id": "top",
+              "label": "Top speed",
+              "min": 64,
+              "max": 192,
+              "default": 64,
+              "unit": 64
+            },
+            {
+              "id": "acc",
+              "label": "Acceleration",
+              "min": 8,
+              "max": 96,
+              "default": 16,
+              "unit": 8
+            }
+          ]
+        },
+        {
+          "name": "Boost mode (speed trail) kicks in",
+          "note": "Boost mode starts after you keep running at top speed for a moment. Normally that takes about 4 seconds, and less the more rings you have. A bump that slows you down starts the wait over. Changes apply after the reload.",
+          "check": [
+            [
+              878870,
+              "00 08 f8 07 90 06 a0 05 38 04"
+            ]
+          ],
+          "choices": [
+            {
+              "label": "Original",
+              "patch": null
+            },
+            {
+              "label": "Almost instant",
+              "patch": [
+                [
+                  878870,
+                  "60 00 60 00 60 00 60 00 60 00"
+                ]
+              ]
+            },
+            {
+              "label": "Very easy",
+              "patch": [
+                [
+                  878870,
+                  "80 01 80 01 80 01 80 01 80 01"
+                ]
+              ]
+            },
+            {
+              "label": "Easy",
+              "patch": [
+                [
+                  878870,
+                  "00 04 00 04 00 04 00 04 00 04"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "cheats": [
+        {
+          "name": "Speed shoes forever",
+          "code": [
+            "23005A16 0400"
+          ]
+        }
+      ]
     }
   ]
 }
