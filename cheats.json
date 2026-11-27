@@ -1,22 +1,81 @@
 {
   "games": [
     {
-      "names": ["Sonic Advance"],
+      "names": [
+        "Sonic Advance"
+      ],
       "system": "gba",
       "source": "Codes found and tested on Sonic Advance (USA).",
       "cheats": [
         {
-          "name": "Speed boost (while holding left or right)",
+          "name": "Speed boost (while holding left or right, also in the air)",
           "choices": [
-            { "label": "1.5x", "code": ["D0000020 0010", "83005A2C 06C0", "D0000020 0020", "83005A2C F940"] },
-            { "label": "2x", "code": ["D0000020 0010", "83005A2C 0900", "D0000020 0020", "83005A2C F700"] },
-            { "label": "3x", "code": ["D0000020 0010", "83005A2C 0D80", "D0000020 0020", "83005A2C F280"] }
+            {
+              "label": "1.5x",
+              "code": [
+                "D0000020 0010",
+                "83005A2C 06C0",
+                "D0000020 0010",
+                "83005A28 06C0",
+                "D0000020 0020",
+                "83005A2C F940",
+                "D0000020 0020",
+                "83005A28 F940"
+              ]
+            },
+            {
+              "label": "2x",
+              "code": [
+                "D0000020 0010",
+                "83005A2C 0900",
+                "D0000020 0010",
+                "83005A28 0900",
+                "D0000020 0020",
+                "83005A2C F700",
+                "D0000020 0020",
+                "83005A28 F700"
+              ]
+            },
+            {
+              "label": "3x",
+              "code": [
+                "D0000020 0010",
+                "83005A2C 0D80",
+                "D0000020 0010",
+                "83005A28 0D80",
+                "D0000020 0020",
+                "83005A2C F280",
+                "D0000020 0020",
+                "83005A28 F280"
+              ]
+            }
           ]
         },
-        { "name": "Can't be hurt (Sonic blinks)", "code": ["83005A3C 0078"] },
-        { "name": "Rings stay at 99 (extra lives keep coming)", "code": ["83004FEC 0063"] },
-        { "name": "Lives stay at 9", "code": ["33005024 000A"] },
-        { "name": "Timer stays at 0:00 (no time over)", "code": ["83004FE4 0000", "83005034 0000"] }
+        {
+          "name": "Can't be hurt (Sonic blinks)",
+          "code": [
+            "83005A3C 0078"
+          ]
+        },
+        {
+          "name": "Rings stay at 99 (extra lives keep coming)",
+          "code": [
+            "83004FEC 0063"
+          ]
+        },
+        {
+          "name": "Lives stay at 9",
+          "code": [
+            "33005024 000A"
+          ]
+        },
+        {
+          "name": "Timer stays at 0:00 (no time over)",
+          "code": [
+            "83004FE4 0000",
+            "83005034 0000"
+          ]
+        }
       ]
     }
   ]
